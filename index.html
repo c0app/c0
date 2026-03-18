@@ -1515,6 +1515,31 @@ auth.getRedirectResult().catch(err => {
   console.error('Redirect sign in error:', err);
 });
 
+// ═══ NAV & TOAST — global, available before login ═══
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('bn-' + name)?.classList.add('active');
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const pages = ['today','log','progress','science','history','data'];
+  navBtns[pages.indexOf(name)]?.classList.add('active');
+  if (name === 'today') renderToday();
+  if (name === 'log') { const type = document.getElementById('workoutType').value; populateExerciseList(type); }
+  if (name === 'progress') setTimeout(drawCharts, 50);
+  if (name === 'history') renderHistory();
+  if (name === 'data') renderDataPage();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
 function initApp() {
 // Inject/correct run data — fix 2025 year bug
 const hasOldDates = !data.runs || data.runs.length === 0 || data.runs.some(r => r.date.startsWith('2025'));
@@ -1622,36 +1647,6 @@ function today() {
 function formatDate(d) {
   const date = new Date(d + 'T12:00:00');
   return date.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-// ═══ NAV ═══
-function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
-
-  document.getElementById('page-' + name).classList.add('active');
-  document.getElementById('bn-' + name)?.classList.add('active');
-
-  const navBtns = document.querySelectorAll('.nav-btn');
-  const pages = ['today','log','progress','science','history','data'];
-  navBtns[pages.indexOf(name)]?.classList.add('active');
-
-  if (name === 'today') renderToday();
-  if (name === 'log') {
-    const type = document.getElementById('workoutType').value;
-    populateExerciseList(type);
-  }
-  if (name === 'progress') setTimeout(drawCharts, 50);
-  if (name === 'history') renderHistory();
-  if (name === 'data') renderDataPage();
 }
 
 // ═══ DATE HEADER ═══
