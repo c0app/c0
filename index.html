@@ -1501,8 +1501,11 @@ auth.onAuthStateChanged(async (user) => {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
     }
 
-    // Run app init
-    initApp();
+    // Run init sequence
+    initHeader();
+    initLogDates();
+    renderToday();
+    populateExerciseList('Lower Body');
 
   } else {
     currentUser = null;
@@ -1540,7 +1543,6 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-function initApp() {
 // Inject/correct run data — fix 2025 year bug
 const hasOldDates = !data.runs || data.runs.length === 0 || data.runs.some(r => r.date.startsWith('2025'));
 if (hasOldDates) {
@@ -3911,21 +3913,13 @@ function clearAllData() {
   showToast('All data cleared');
 }
 
-// ═══ INIT ═══
-initHeader();
-initLogDates();
-renderToday();
-
-// Pre-populate exercise form with recommended weights
-populateExerciseList('Lower Body');
-
 // Handle page resize for charts
 window.addEventListener('resize', () => {
   if (document.getElementById('page-progress').classList.contains('active')) {
     drawCharts();
   }
 });
-} // end initApp
+
 </script>
 </body>
 </html>
