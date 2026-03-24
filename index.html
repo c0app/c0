@@ -1434,6 +1434,9 @@ let currentUser = null;
 // Sign in with Google — popup works on desktop, redirect on mobile
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithRedirect(provider);
+}
+  const provider = new firebase.auth.GoogleAuthProvider();
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
     auth.signInWithRedirect(provider);
