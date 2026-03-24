@@ -1506,15 +1506,18 @@ auth.onAuthStateChanged(async (user) => {
     const cloudData = await loadDataFromCloud();
     if (cloudData) {
       data = cloudData;
-      // Also update localStorage with cloud data
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+    } else {
+      data = { workouts: [], runs: [], steps: [] };
     }
 
-    // Run init sequence
-    initHeader();
-    initLogDates();
-    renderToday();
-    populateExerciseList('Lower Body');
+    // Run init sequence after data is fully loaded
+    setTimeout(() => {
+      initHeader();
+      initLogDates();
+      renderToday();
+      populateExerciseList('Lower Body');
+    }, 100);
 
   } else {
     currentUser = null;
