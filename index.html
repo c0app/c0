@@ -1436,18 +1436,6 @@ function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
   auth.signInWithRedirect(provider);
 }
-  const provider = new firebase.auth.GoogleAuthProvider();
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    auth.signInWithRedirect(provider);
-  } else {
-    auth.signInWithPopup(provider).catch(err => {
-      console.error('Popup sign in error:', err);
-      // Fallback to redirect if popup blocked
-      auth.signInWithRedirect(provider);
-    });
-  }
-}
 
 function signOut() {
   auth.signOut().then(() => {
