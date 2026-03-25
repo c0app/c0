@@ -959,6 +959,21 @@
       <input type="date" class="form-input" id="runDate">
     </div>
 
+    <div class="form-group">
+      <label class="form-label">Run Type</label>
+      <div style="display:flex;gap:8px">
+        <button id="runTypeEasy" onclick="selectRunType('easy')"
+          style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.10);color:var(--run);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s">
+          🫁 Easy 5K<br><span style="font-size:10px;font-weight:400;opacity:0.8">HR &lt;155 · conversational</span>
+        </button>
+        <button id="runTypeTempo" onclick="selectRunType('tempo')"
+          style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s">
+          ⚡ Tempo<br><span style="font-size:10px;opacity:0.8">comfortably hard</span>
+        </button>
+      </div>
+      <input type="hidden" id="runTypeVal" value="easy">
+    </div>
+
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Distance (km)</label>
@@ -1288,6 +1303,20 @@
     <div class="form-group">
       <label class="form-label">Date</label>
       <input type="date" class="form-input" id="editRunDate">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Run Type</label>
+      <div style="display:flex;gap:8px">
+        <button id="editRunTypeEasy" onclick="selectEditRunType('easy')"
+          style="flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.10);color:var(--run);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s">
+          🫁 Easy 5K
+        </button>
+        <button id="editRunTypeTempo" onclick="selectEditRunType('tempo')"
+          style="flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s">
+          ⚡ Tempo
+        </button>
+      </div>
+      <input type="hidden" id="editRunTypeVal" value="easy">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1780,13 +1809,15 @@ function getExerciseContext(exerciseName, baseWeight) {
 function getRunPrescription() {
   const sorted = data.runs.slice().sort((a, b) => b.date.localeCompare(a.date));
   const last = sorted[0];
+  const nextRunType = getNextRunType(); // 'easy' or 'tempo'
 
   if (!last) {
     return {
-      type: '🚶 First Run',
-      dist: 2.5,
-      pace: 10.5,
-      reason: 'No runs logged yet. Start easy — 2–3km at a comfortable conversational pace.',
+      runType: 'easy',
+      type: '🫁 Easy 5K',
+      dist: 5.0,
+      pace: 8.0,
+      reason: 'No runs logged yet. Start with your easy 5K — keep HR under 155, conversational pace. This builds your aerobic base safely.',
       urgency: 'var(--text2)',
       daysSince: 999,
     };
@@ -1800,53 +1831,62 @@ function getRunPrescription() {
 
   let type, dist, pace, reason, urgency;
 
-  if (daysSince <= 3) {
-    // Fresh — progress normally
-    if (lastDist < 4) {
-      dist = parseFloat(Math.min(5.0, lastDist * 1.10).toFixed(1));
-      pace = parseFloat((lastPace * 0.99).toFixed(2));
-      type = '📏 Build Distance';
-      reason = `Last run ${daysSince}d ago (${lastDist}km). Add 10% distance — your aerobic system is primed.`;
+  if (nextRunType === 'easy') {
+    // ── Easy 5K prescription ──
+    // Always 5km, HR <155, conversational. Pace adjusts for gap.
+    dist = 5.0;
+    if (daysSince <= 7) {
+      // Find last easy run to gauge pace
+      const lastEasy = sorted.find(r => (r.runType || 'easy') === 'easy');
+      pace = lastEasy ? parseFloat((lastEasy.pace * 1.0).toFixed(2)) : 8.0;
+      type = '🫁 Easy 5K';
+      reason = `Your easy run today — keep HR under 155 the whole way. If your HR creeps up, slow down; don't push through it. This is your aerobic base session.`;
+      urgency = 'var(--run)';
+    } else if (daysSince <= 14) {
+      const lastEasy = sorted.find(r => (r.runType || 'easy') === 'easy');
+      pace = lastEasy ? parseFloat((lastEasy.pace * 1.05).toFixed(2)) : 8.5;
+      type = '🫁 Easy 5K — Ease Back';
+      reason = `${daysSince} days since your last run. Go easy — slower than usual, HR well under 155. Your aerobic system will bounce back quickly.`;
+      urgency = 'var(--warning)';
     } else {
-      dist = lastDist;
-      pace = parseFloat((best5K * 0.97).toFixed(2));
-      type = '⚡ Tempo Push';
-      reason = `Last run ${daysSince}d ago. You're on schedule — push pace 3% faster than your best (${fmtPace(best5K)}/km).`;
+      pace = 9.0;
+      type = '🫁 Easy 5K — Restart';
+      reason = `${daysSince} days off. Start very easy — HR under 145 if possible. Don't worry about pace today, just get the legs moving again.`;
+      urgency = 'var(--danger)';
     }
-    urgency = 'var(--strength)';
-
-  } else if (daysSince <= 7) {
-    // Normal gap — same effort, slight distance build
-    dist = parseFloat(Math.min(5.0, lastDist * 1.05).toFixed(1));
-    pace = lastPace;
-    type = '🏃 Steady Run';
-    reason = `${daysSince} days since your last run — good rhythm. Match your last pace, add a little distance.`;
-    urgency = 'var(--accent2)';
-
-  } else if (daysSince <= 14) {
-    // 1–2 week gap — ease back in
-    dist = parseFloat((lastDist * 0.85).toFixed(1));
-    pace = parseFloat((lastPace * 1.05).toFixed(2));
-    type = '🌿 Ease Back In';
-    reason = `${daysSince} days off. Aerobic base starts fading after ~10 days. Run shorter and slower — don't force last session's pace.`;
-    urgency = 'var(--warning)';
 
   } else {
-    // 2+ weeks — restart conservatively
-    dist = Math.min(3.0, parseFloat((lastDist * 0.75).toFixed(1)));
-    pace = parseFloat((lastPace * 1.10).toFixed(2));
-    type = '🔄 Restart Run';
-    reason = `${daysSince} days since last run — significant aerobic detraining has occurred. Start short and easy. Your lungs will remind you quickly.`;
-    urgency = 'var(--danger)';
+    // ── Tempo run prescription ──
+    // Comfortably hard — based on best 5K pace with gap adjustments.
+    if (daysSince <= 7) {
+      dist = lastDist >= 4 ? lastDist : 5.0;
+      pace = parseFloat((best5K * 0.97).toFixed(2));
+      type = '⚡ Tempo Run';
+      reason = `Your tempo session — comfortably hard, RPE 7–8. Target pace is 3% faster than your best 5K (${fmtPace(best5K)}/km). Should feel hard to hold a conversation.`;
+      urgency = 'var(--accent)';
+    } else if (daysSince <= 14) {
+      dist = 5.0;
+      pace = parseFloat((best5K * 1.02).toFixed(2));
+      type = '⚡ Tempo Run — Conservative';
+      reason = `${daysSince} days since last run — scale back your tempo slightly. Target is 2% slower than your best 5K. Still a quality session, just not an all-out push.`;
+      urgency = 'var(--warning)';
+    } else {
+      // Long gap — skip tempo, revert to easy
+      dist = 5.0;
+      pace = 8.5;
+      type = '🫁 Easy 5K (gap too long for tempo)';
+      reason = `${daysSince} days off — jumping straight into a tempo run after a long break risks injury and poor performance. Run easy today and do your tempo next session once you've re-established the base.`;
+      urgency = 'var(--danger)';
+    }
+
+    // If last session was a hard RPE, back off slightly
+    if (lastRPE >= 8) {
+      pace = parseFloat((pace * 1.03).toFixed(2));
+      reason += ' Last session was high RPE — slight intensity reduction applied.';
+    }
   }
 
-  // RPE adjustment
-  if (lastRPE >= 8) {
-    pace = parseFloat((pace * 1.04).toFixed(2));
-    reason += ' Last session was hard — backing off intensity slightly.';
-  }
-
-  return { type, dist, pace, reason, urgency, daysSince, lastDist, lastPace };
+  return { runType: nextRunType, type, dist, pace, reason, urgency, daysSince, lastDist, lastPace };
 }
 
 // ── Set Scheme Generator ──
@@ -1973,12 +2013,117 @@ function calcAllDebts() {
   })).sort((a, b) => b.score - a.score);
 }
 
+// Returns the last N logged activities in chronological order (most recent last).
+// Each item: { kind: 'strength'|'run', type: 'Lower Body'|'Upper Body'|'Full Body'|'Run', date, runType? }
+function getRecentActivitySequence(n = 3) {
+  const strengthEntries = (data.workouts || []).map(w => ({ kind: 'strength', type: w.type, date: w.date }));
+  const runEntries      = (data.runs    || []).map(r => ({ kind: 'run', type: 'Run', date: r.date, runType: r.runType || 'easy' }));
+  return [...strengthEntries, ...runEntries]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-n);
+}
+
+// Determine what type of run to recommend next based on the alternating easy/tempo pattern.
+// Returns 'easy' or 'tempo'.
+function getNextRunType() {
+  const lastRun = data.runs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (!lastRun) return 'easy'; // default to easy for first run
+  const lastType = lastRun.runType || 'easy';
+  return lastType === 'easy' ? 'tempo' : 'easy';
+}
+
+// Sequence-aware debt scoring.
+// Applies two science-based penalties / boosts on top of the raw debt score:
+//
+//  1. "No run after leg day" rule:
+//     If the most recent session was a Lower Body strength workout done within
+//     the last 2 days, running gets a heavy penalty (legs need ~48 h to recover
+//     before impact activity).
+//
+//  2. "Third-day cardio" rule:
+//     If the last two distinct session types were Lower Body then Upper Body
+//     (in that order, both within the last 4 days), running gets a large boost
+//     because the logical recovery day is a low-impact cardio day.
+//
+// Returns debts sorted by adjusted score (highest first), each entry also
+// carries { adjustedScore, sequenceNote } for display.
+function calcSequenceAdjustedDebts() {
+  const debts = calcAllDebts(); // base debt order
+  const seq   = getRecentActivitySequence(3);
+
+  // Identify last two distinct activities (skip same-day duplicates of same type)
+  const distinctLast = [];
+  for (let i = seq.length - 1; i >= 0 && distinctLast.length < 2; i--) {
+    if (distinctLast.length === 0 || distinctLast[distinctLast.length - 1].type !== seq[i].type) {
+      distinctLast.unshift(seq[i]);
+    }
+  }
+
+  const lastActivity   = distinctLast[distinctLast.length - 1]; // most recent
+  const secondLastActivity = distinctLast.length >= 2 ? distinctLast[distinctLast.length - 2] : null;
+
+  const todayStr = today();
+  const daysSinceActivity = (act) => act
+    ? Math.floor((new Date(todayStr) - new Date(act.date + 'T12:00:00')) / 86400000)
+    : 999;
+
+  const lastDays       = daysSinceActivity(lastActivity);
+  const secondLastDays = daysSinceActivity(secondLastActivity);
+
+  // Determine which rules fire
+  const isLegDayRecent =
+    lastActivity &&
+    (lastActivity.type === 'Lower Body' || lastActivity.type === 'Full Body') &&
+    lastDays <= 2;
+
+  const isThirdDayPattern =
+    secondLastActivity &&
+    (secondLastActivity.type === 'Lower Body' || secondLastActivity.type === 'Full Body') &&
+    secondLastDays <= 4 &&
+    lastActivity &&
+    lastActivity.type === 'Upper Body' &&
+    lastDays <= 3;
+
+  return debts.map(d => {
+    let adjustedScore = d.score;
+    let sequenceNote  = null;
+
+    if (d.type === 'Run') {
+      const nextRunType = getNextRunType();
+      if (isLegDayRecent && !isThirdDayPattern) {
+        if (nextRunType === 'tempo') {
+          // Tempo after leg day: heavy penalty — high impact, same muscles
+          adjustedScore = Math.max(0, d.score - 1.5);
+          sequenceNote  = `A tempo run after ${lastActivity.type} (${lastDays === 0 ? 'today' : lastDays + 'd ago'}) stresses the same muscles before they've recovered. Your next run should be a tempo — but wait one more day, or swap to your easy run today instead.`;
+        } else {
+          // Easy run after leg day: slight penalty — impact still present but manageable
+          adjustedScore = Math.max(0, d.score - 0.6);
+          sequenceNote  = `Your legs are still recovering from ${lastActivity.type} (${lastDays === 0 ? 'today' : lastDays + 'd ago'}). An easy 5K at HR <155 is fine — low intensity won't interfere with recovery. Avoid pushing the pace.`;
+        }
+      } else if (isThirdDayPattern) {
+        // Lower → Upper → ?: perfect day for cardio, and promote the right type
+        adjustedScore = d.score + 1.8;
+        const runTypeLabel = nextRunType === 'tempo' ? 'tempo run — your legs are fresh' : 'easy 5K — good active recovery day';
+        sequenceNote  = `Lower body then upper body done — ideal day for your ${runTypeLabel}. Your muscles need a break from lifting and aerobic work supports recovery.`;
+      }
+    } else {
+      // For strength sessions: if third-day cardio pattern applies, slightly
+      // de-prioritize strength relative to the boosted run
+      if (isThirdDayPattern) {
+        adjustedScore = Math.max(0, d.score - 0.3);
+      }
+    }
+
+    return { ...d, adjustedScore, sequenceNote };
+  }).sort((a, b) => b.adjustedScore - a.adjustedScore);
+}
+
 // ── Training Intelligence Card ──
 function renderTrainingIntelCard() {
   const el = document.getElementById('trainingIntelCard');
   if (!el) return;
 
-  const debts = calcAllDebts();
+  const debts = calcSequenceAdjustedDebts();
   const todayHasWorkout = data.workouts.some(w => w.date === today());
   const todayHasRun = data.runs.some(r => r.date === today());
 
@@ -2036,7 +2181,9 @@ function renderTrainingIntelCard() {
   // Human reason text
   const neverDone = debts.filter(d => d.days === 999);
   let reason;
-  if (neverDone.length > 0) {
+  if (top.sequenceNote) {
+    reason = `🔬 ${top.sequenceNote}`;
+  } else if (neverDone.length > 0) {
     reason = `You haven't logged a <strong>${neverDone[0].type}</strong> session yet. Start here to give the app something to learn from.`;
   } else if (top.type === 'Run' && top.score >= 1) {
     reason = `Your last run was ${top.days} days ago. Running twice a week keeps your aerobic fitness building — without it, your cardio base slowly fades.`;
@@ -2063,7 +2210,7 @@ function renderTrainingIntelCard() {
 // ── Next Workout Card (driven by debt engine) ──
 function renderNextWorkout() {
   const card = document.getElementById('nextWorkoutCard');
-  const debts = calcAllDebts();
+  const debts = calcSequenceAdjustedDebts();
   const top = debts[0];
 
   const todayHasWorkout = data.workouts.some(w => w.date === today());
@@ -2086,11 +2233,17 @@ function renderNextWorkout() {
     return;
   }
 
-  // If run is most overdue AND no strength done today — recommend run
+  // Sequence note banner (shown when sequence logic overrides raw debt order)
+  const sequenceNoteBanner = top.sequenceNote
+    ? `<div style="font-size:11px;color:var(--accent2);font-family:'Karla',sans-serif;padding:9px 11px;background:rgba(122,106,82,0.08);border-radius:8px;border:1px solid rgba(122,106,82,0.22);margin-bottom:12px;line-height:1.55">🔬 ${top.sequenceNote}</div>`
+    : '';
+
+  // If run is top priority AND no strength done today — recommend run
   if (top.type === 'Run' && !todayHasRun && !todayHasWorkout) {
     card.innerHTML = `
       <div class="next-tag" style="color:var(--run)">🏃 Run Priority</div>
       <div class="next-title">Running is most overdue</div>
+      ${sequenceNoteBanner}
       <div class="next-sub">See the Run Prescription below for today's specific target.</div>`;
     return;
   }
@@ -2133,6 +2286,7 @@ function renderNextWorkout() {
     <div class="next-tag">↑ Highest Training Debt</div>
     <div class="next-title">${workoutType}</div>
     <div class="next-sub">${sinceLabel} · 45–55 min target</div>
+    ${sequenceNoteBanner}
     ${deloadNotice}
     <div class="exercise-list">${exRows}</div>`;
 }
@@ -2150,9 +2304,16 @@ function renderRunRecommendation() {
                     rx.daysSince === 1   ? 'Last run: yesterday' :
                     `Last run: ${rx.daysSince} days ago`;
 
+  const runTypeBadge = rx.runType === 'easy'
+    ? `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:rgba(122,106,82,0.12);color:var(--run);border:1px solid rgba(122,106,82,0.3);font-family:'Karla',sans-serif">🫁 Easy · HR &lt;155</span>`
+    : `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:rgba(184,92,56,0.10);color:var(--accent);border:1px solid rgba(184,92,56,0.28);font-family:'Karla',sans-serif">⚡ Tempo · RPE 7–8</span>`;
+
   card.innerHTML = `
     <div style="background:rgba(122,106,82,0.06);border:1px solid ${rx.urgency}40;border-radius:var(--radius);padding:16px;margin-bottom:10px">
-      <div style="font-size:10px;letter-spacing:2px;color:${rx.urgency};text-transform:uppercase;margin-bottom:6px;font-family:'Karla',sans-serif;font-weight:600">Run Prescription</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="font-size:10px;letter-spacing:2px;color:${rx.urgency};text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600">Run Prescription</div>
+        ${runTypeBadge}
+      </div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;margin-bottom:4px">${rx.type}</div>
       <div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;margin-bottom:12px">${daysLabel}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
@@ -2395,17 +2556,44 @@ function saveStrengthWorkout() {
 }
 
 // ═══ SAVE RUN ═══
+function selectRunType(type) {
+  document.getElementById('runTypeVal').value = type;
+  const easyBtn  = document.getElementById('runTypeEasy');
+  const tempoBtn = document.getElementById('runTypeTempo');
+  if (type === 'easy') {
+    easyBtn.style.cssText  = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.15);color:var(--run);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    tempoBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s`;
+  } else {
+    tempoBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.12);color:var(--accent);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    easyBtn.style.cssText  = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s`;
+  }
+}
+
+function selectEditRunType(type) {
+  document.getElementById('editRunTypeVal').value = type;
+  const easyBtn  = document.getElementById('editRunTypeEasy');
+  const tempoBtn = document.getElementById('editRunTypeTempo');
+  if (type === 'easy') {
+    easyBtn.style.cssText  = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.15);color:var(--run);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    tempoBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+  } else {
+    tempoBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.12);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    easyBtn.style.cssText  = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+  }
+}
+
 function saveRun() {
   const date = document.getElementById('runDate').value || today();
   const distance = parseFloat(document.getElementById('runDistance').value);
   const time = parseFloat(document.getElementById('runTime').value);
   const rpe = parseInt(document.getElementById('runRPE').value);
   const notes = document.getElementById('runNotes').value;
+  const runType = document.getElementById('runTypeVal').value || 'easy';
 
   if (!distance || !time) { showToast('Enter distance and time'); return; }
 
   const pace = time / distance;
-  data.runs.push({ date, distance, time, pace, rpe, notes });
+  data.runs.push({ date, distance, time, pace, rpe, notes, runType });
   saveData(data);
   showToast('🏃 Run saved!');
   showPage('today');
@@ -2733,6 +2921,7 @@ function openEditRun(idx) {
   document.getElementById('editRunRPE').value = r.rpe || 6;
   document.getElementById('editRpeVal').textContent = r.rpe || 6;
   document.getElementById('editRunNotes').value = r.notes || '';
+  selectEditRunType(r.runType || 'easy');
   updateEditRunPace();
   document.getElementById('editRunModal').classList.add('open');
 }
@@ -2770,6 +2959,7 @@ function saveEditRun() {
     pace: time / distance,
     rpe: parseInt(document.getElementById('editRunRPE').value),
     notes: document.getElementById('editRunNotes').value,
+    runType: document.getElementById('editRunTypeVal').value || 'easy',
   };
   saveData(data);
   closeModal('editRunModal');
