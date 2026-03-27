@@ -1986,10 +1986,31 @@ function getSetScheme(exType, workingWeight, gapDays, defaultSecs) {
 const TRAINING_TARGETS = {
   'Lower Body':  { idealDays: 7,   importance: 1.0, emoji: '🦵', color: 'var(--strength)'  },
   'Upper Body':  { idealDays: 7,   importance: 1.0, emoji: '💪', color: 'var(--accent)'    },
-  'Full Body':   { idealDays: 7,   importance: 0.9, emoji: '⚡', color: 'var(--warning)'   },
   'Run':         { idealDays: 3.5, importance: 1.1, emoji: '🏃', color: 'var(--run)'       },
   'Mobility':    { idealDays: 7,   importance: 0.7, emoji: '🧘', color: 'var(--accent2)'   },
 };
+
+// Full Body is NOT a regular rotation slot.
+// It surfaces only as a reactivation session when both Lower and Upper are 14+ days overdue.
+// A logged Full Body session resets both Lower and Upper Body clocks.
+function checkFullBodyReactivation() {
+  const lowerDays = daysSinceLast('Lower Body');
+  const upperDays = daysSinceLast('Upper Body');
+  const lastFullBody = data.workouts
+    .filter(w => w.type === 'Full Body')
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const fullBodyDays = lastFullBody
+    ? Math.floor((new Date(today()) - new Date(lastFullBody.date + 'T12:00:00')) / 86400000)
+    : 999;
+  // Treat a Full Body as resetting both Lower and Upper clocks
+  const effectiveLower = Math.min(lowerDays, fullBodyDays);
+  const effectiveUpper = Math.min(upperDays, fullBodyDays);
+  return {
+    active: effectiveLower >= 14 && effectiveUpper >= 14,
+    lowerDays: effectiveLower,
+    upperDays: effectiveUpper,
+  };
+}
 
 // Returns days since last instance of this activity type
 function daysSinceLast(type) {
@@ -2058,6 +2079,21 @@ function getNextRunType() {
 function calcSequenceAdjustedDebts() {
   const debts = calcAllDebts(); // base debt order
   const seq   = getRecentActivitySequence(3);
+
+  // Full Body reactivation override — takes precedence over all other logic
+  const fb = checkFullBodyReactivation();
+  if (fb.active) {
+    // Inject Full Body as a synthetic debt entry at the top
+    const fullBodyEntry = {
+      type: 'Full Body',
+      days: Math.max(fb.lowerDays, fb.upperDays),
+      score: 99, // guaranteed top
+      adjustedScore: 99,
+      sequenceNote: `Both Lower Body (${fb.lowerDays === 999 ? 'never' : fb.lowerDays + 'd ago'}) and Upper Body (${fb.upperDays === 999 ? 'never' : fb.upperDays + 'd ago'}) are significantly overdue. A Full Body circuit reactivates everything at lower intensity — safer than jumping straight into a heavy single-group session after this long a gap.`,
+      target: { idealDays: 7, importance: 1.0, emoji: '⚡', color: 'var(--warning)' },
+    };
+    return [fullBodyEntry, ...debts.map(d => ({ ...d, adjustedScore: d.score, sequenceNote: null }))];
+  }
 
   // Identify last two distinct activities (skip same-day duplicates of same type)
   const distinctLast = [];
@@ -2212,6 +2248,8 @@ function renderTrainingIntelCard() {
     reason = `🔬 ${top.sequenceNote}`;
   } else if (neverDone.length > 0 && neverDone[0].type !== 'Mobility') {
     reason = `You haven't logged a <strong>${neverDone[0].type}</strong> session yet. Start here to give the app something to learn from.`;
+  } else if (top.type === 'Full Body') {
+    reason = `Both Lower Body and Upper Body are significantly overdue. A Full Body circuit at reduced weight reactivates everything safely — better than going heavy on one group after this long a break.`;
   } else if (top.type === 'Mobility') {
     reason = `A mobility or Pilates session is due. It keeps your joints healthy, improves movement quality for lifting and running, and activates the parasympathetic system for faster recovery.`;
   } else if (top.type === 'Run' && top.score >= 1) {
@@ -2279,6 +2317,30 @@ function renderNextWorkout() {
 
   // Strength workout needed — determine which type
   const workoutType = (top.type === 'Run') ? debts.find(d => d.type !== 'Run' && d.type !== 'Mobility')?.type || 'Lower Body' : top.type;
+
+  // Full Body reactivation card
+  if (workoutType === 'Full Body') {
+    const fb = checkFullBodyReactivation();
+    card.innerHTML = `
+      <div class="next-tag" style="color:var(--warning)">⚡ Reactivation Session</div>
+      <div class="next-title">Full Body Circuit</div>
+      <div class="next-sub">Both muscle groups overdue · weights reduced 20% · focus on form</div>
+      ${top.sequenceNote ? `<div style="font-size:11px;color:var(--warning);font-family:'Karla',sans-serif;padding:9px 11px;background:rgba(196,146,58,0.07);border-radius:8px;border:1px solid rgba(196,146,58,0.22);margin-bottom:12px;line-height:1.55">🔬 ${top.sequenceNote}</div>` : ''}
+      <div class="exercise-list">${(EXERCISES['Full Body'] || []).map(ex => {
+        const ctx = getExerciseContext(ex.name, ex.base);
+        const isBodyweight = ex.base === 0;
+        return `<div class="exercise-row">
+          <div style="flex:1">
+            <div class="ex-name">${ex.name}</div>
+            <div class="ex-prev" style="color:${isBodyweight ? 'var(--text3)' : 'var(--warning)'}">
+              ${isBodyweight ? '3 sets · bodyweight' : `3 sets · ${Math.round(ctx.weight * 0.8)} lbs (−20%)`}
+            </div>
+          </div>
+          <div class="ex-target" style="color:var(--warning)">${isBodyweight ? 'BW' : Math.round(ctx.weight * 0.8) + ' lbs'}</div>
+        </div>`;
+      }).join('')}</div>`;
+    return;
+  }
 
   // Mobility gets its own card — no exercise list
   if (workoutType === 'Mobility') {
@@ -2423,23 +2485,35 @@ function renderTomorrow() {
   // and inject today's recommended session as if completed.
   // We do this non-destructively by computing debts manually with +1 day offset.
   function daysSinceLastTomorrow(type) {
-    // Days since last real session of this type, as seen from tomorrow
-    let last;
-    if (type === 'Run') {
-      last = data.runs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
-    } else {
-      last = data.workouts.filter(w => w.type === type)
-        .sort((a, b) => b.date.localeCompare(a.date))[0];
+    const todayType = todayTop.type;
+    // If today's recommendation is Full Body, it resets both Lower and Upper clocks
+    if (todayType === 'Full Body' && (type === 'Lower Body' || type === 'Upper Body')) {
+      return 1;
     }
     // If today's recommendation matches this type, treat it as done today
-    const todayType = todayTop.type;
     const todayIsRun = todayType === 'Run';
     if (
       (type === 'Run' && todayIsRun) ||
       (type !== 'Run' && type === todayType)
     ) {
-      // As of tomorrow, today's session was 1 day ago
       return 1;
+    }
+    let last;
+    if (type === 'Run') {
+      last = data.runs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+    } else {
+      // Also count Full Body sessions as resetting Lower/Upper clocks in history
+      const directLast = data.workouts.filter(w => w.type === type)
+        .sort((a, b) => b.date.localeCompare(a.date))[0];
+      const fullBodyLast = (type === 'Lower Body' || type === 'Upper Body')
+        ? data.workouts.filter(w => w.type === 'Full Body').sort((a, b) => b.date.localeCompare(a.date))[0]
+        : null;
+      // Use whichever is more recent
+      if (directLast && fullBodyLast) {
+        last = directLast.date >= fullBodyLast.date ? directLast : fullBodyLast;
+      } else {
+        last = directLast || fullBodyLast;
+      }
     }
     if (!last) return 999;
     return Math.floor((new Date(tomorrowStr) - new Date(last.date + 'T12:00:00')) / 86400000);
@@ -2447,8 +2521,24 @@ function renderTomorrow() {
 
   function debtScoreTomorrow(type) {
     const t = TRAINING_TARGETS[type];
+    if (!t) return 0; // Full Body not in TRAINING_TARGETS
     const days = daysSinceLastTomorrow(type);
     return (days / t.idealDays) * t.importance;
+  }
+
+  // Check Full Body reactivation from tomorrow's perspective
+  const tomorrowLowerDays = daysSinceLastTomorrow('Lower Body');
+  const tomorrowUpperDays = daysSinceLastTomorrow('Upper Body');
+  const fbTomorrow = tomorrowLowerDays >= 14 && tomorrowUpperDays >= 14;
+
+  if (fbTomorrow) {
+    card.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
+        <div style="font-size:10px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600;margin-bottom:8px">Up Next</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600">⚡ Full Body Circuit</div>
+        <div style="font-size:11px;color:var(--warning);font-family:'Karla',sans-serif;margin-top:4px">Reactivation — both muscle groups overdue</div>
+      </div>`;
+    return;
   }
 
   const tomorrowDebts = Object.keys(TRAINING_TARGETS).map(type => ({
