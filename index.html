@@ -887,9 +887,6 @@
   <div class="section-label">Next Run Prescription</div>
   <div id="runRecommendCard"></div>
 
-  <div class="section-label">Tomorrow</div>
-  <div id="tomorrowCard"></div>
-
   <!-- Steps today -->
   <div class="section-label">Steps</div>
   <div id="stepsCard"></div>
@@ -919,7 +916,6 @@
         <option value="Lower Body">Lower Body</option>
         <option value="Upper Body">Upper Body</option>
         <option value="Full Body">Full Body Circuit</option>
-        <option value="Mobility">Mobility / Pilates</option>
       </select>
     </div>
 
@@ -961,21 +957,6 @@
     <div class="form-group">
       <label class="form-label">Date</label>
       <input type="date" class="form-input" id="runDate">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Run Type</label>
-      <div style="display:flex;gap:8px">
-        <button id="runTypeEasy" onclick="selectRunType('easy')"
-          style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.10);color:var(--run);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s">
-          🫁 Easy 5K<br><span style="font-size:10px;font-weight:400;opacity:0.8">HR &lt;155 · conversational</span>
-        </button>
-        <button id="runTypeTempo" onclick="selectRunType('tempo')"
-          style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s">
-          ⚡ Tempo<br><span style="font-size:10px;opacity:0.8">comfortably hard</span>
-        </button>
-      </div>
-      <input type="hidden" id="runTypeVal" value="easy">
     </div>
 
     <div class="form-row">
@@ -1245,7 +1226,6 @@
           <option value="Lower Body">Lower Body</option>
           <option value="Upper Body">Upper Body</option>
           <option value="Full Body">Full Body Circuit</option>
-          <option value="Mobility">Mobility / Pilates</option>
         </select>
       </div>
       <div class="form-row">
@@ -1308,20 +1288,6 @@
     <div class="form-group">
       <label class="form-label">Date</label>
       <input type="date" class="form-input" id="editRunDate">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Run Type</label>
-      <div style="display:flex;gap:8px">
-        <button id="editRunTypeEasy" onclick="selectEditRunType('easy')"
-          style="flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.10);color:var(--run);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s">
-          🫁 Easy 5K
-        </button>
-        <button id="editRunTypeTempo" onclick="selectEditRunType('tempo')"
-          style="flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s">
-          ⚡ Tempo
-        </button>
-      </div>
-      <input type="hidden" id="editRunTypeVal" value="easy">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1465,7 +1431,7 @@
 const STORAGE_KEY = 'c0_data';
 let currentUser = null;
 
-// Sign in with Google — popup works on desktop, redirect on mobile
+// Sign in with Google
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
   auth.signInWithRedirect(provider);
@@ -1478,6 +1444,7 @@ function signOut() {
     document.getElementById('loginScreen').style.display = 'flex';
   });
 }
+
 // Save to Firestore
 async function saveData(d) {
   // Always save to localStorage as backup
@@ -1531,8 +1498,6 @@ auth.onAuthStateChanged(async (user) => {
     if (cloudData) {
       data = cloudData;
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
-    } else {
-      data = { workouts: [], runs: [], steps: [] };
     }
 
     // Run init sequence after data is fully loaded
@@ -1558,29 +1523,99 @@ auth.getRedirectResult().then(result => {
   console.error('Redirect sign in error:', err.code, err.message);
 });
 
-// ═══ NAV & TOAST — global, available before login ═══
-function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  document.getElementById('bn-' + name)?.classList.add('active');
-  const navBtns = document.querySelectorAll('.nav-btn');
-  const pages = ['today','log','progress','science','history','data'];
-  navBtns[pages.indexOf(name)]?.classList.add('active');
-  if (name === 'today') renderToday();
-  if (name === 'log') { const type = document.getElementById('workoutType').value; populateExerciseList(type); }
-  if (name === 'progress') setTimeout(drawCharts, 50);
-  if (name === 'history') renderHistory();
-  if (name === 'data') renderDataPage();
+function initApp() {
+// Inject/correct run data — fix 2025 year bug
+const hasOldDates = !data.runs || data.runs.length === 0 || data.runs.some(r => r.date.startsWith('2025'));
+if (hasOldDates) {
+  data.runs = [
+    { date: '2026-02-03', distance: 2.23, time: 21.05, pace: 9.44, rpe: 7, notes: 'Apple Watch' },
+    { date: '2026-02-10', distance: 5.00, time: 44.73, pace: 8.95, rpe: 8, notes: 'Apple Watch' },
+    { date: '2026-02-13', distance: 5.01, time: 43.25, pace: 8.63, rpe: 8, notes: 'Apple Watch — best 5K' },
+    { date: '2026-02-21', distance: 2.64, time: 30.03, pace: 11.38, rpe: 7, notes: 'Apple Watch' },
+    { date: '2026-03-02', distance: 3.01, time: 32.05, pace: 10.65, rpe: 7, notes: 'Apple Watch' },
+    { date: '2026-03-08', distance: 2.89, time: 30.02, pace: 10.39, rpe: 6, notes: 'Apple Watch' },
+  ];
+  saveData(data);
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+// Inject real strength data if none exist yet
+if (!data.workouts || data.workouts.length === 0) {
+  data.workouts = [
+    {
+      date: '2026-02-15', type: 'Lower Body', duration: 66, volume: 2800, calories: 257, avgHR: 104, notes: 'Apple Watch · Princeton',
+      exercises: [
+        { name: 'Romanian Deadlift', sets: [{weight:55,reps:8},{weight:55,reps:8},{weight:55,reps:8},{weight:55,reps:8}] },
+        { name: 'Hamstring Curl (band)', sets: [{weight:0,reps:12},{weight:0,reps:12},{weight:0,reps:12}] },
+        { name: 'Glute Bridge', sets: [{weight:27.5,reps:10},{weight:27.5,reps:10},{weight:27.5,reps:10}] },
+        { name: 'Step Downs', sets: [{weight:0,reps:8},{weight:0,reps:8},{weight:0,reps:8}] },
+        { name: 'Dead Bug', sets: [{weight:0,reps:10},{weight:0,reps:10},{weight:0,reps:10}] },
+      ]
+    },
+    {
+      date: '2026-02-16', type: 'Upper Body', duration: 43, volume: 1950, calories: 166, avgHR: 103, notes: 'Apple Watch · Princeton',
+      exercises: [
+        { name: 'Arnold Press', sets: [{weight:12,reps:10},{weight:12,reps:10},{weight:12,reps:10},{weight:12,reps:10}] },
+        { name: 'One-Arm Dumbbell Row', sets: [{weight:15,reps:10},{weight:18,reps:10},{weight:18,reps:10}] },
+        { name: 'Lateral Raise', sets: [{weight:6,reps:12},{weight:6,reps:12},{weight:6,reps:12}] },
+        { name: 'Dumbbell Pullover', sets: [{weight:15,reps:12},{weight:15,reps:12},{weight:15,reps:12}] },
+        { name: 'Plank', sets: [{weight:0,reps:45},{weight:0,reps:45},{weight:0,reps:45}] },
+      ]
+    },
+    {
+      date: '2026-02-22', type: 'Lower Body', duration: 41, volume: 2600, calories: 189, avgHR: 118, notes: 'Apple Watch · Princeton',
+      exercises: [
+        { name: 'Romanian Deadlift', sets: [{weight:55,reps:8},{weight:55,reps:8},{weight:55,reps:8}] },
+        { name: 'Glute Bridge', sets: [{weight:27.5,reps:10},{weight:27.5,reps:10},{weight:27.5,reps:10}] },
+        { name: 'Hamstring Curl (band)', sets: [{weight:0,reps:12},{weight:0,reps:12},{weight:0,reps:12}] },
+        { name: 'Side Plank Hip Dip', sets: [{weight:0,reps:10},{weight:0,reps:10}] },
+      ]
+    },
+    {
+      date: '2026-03-07', type: 'Full Body', duration: 57, volume: 3100, calories: 220, avgHR: 96, notes: 'Apple Watch · Princeton',
+      exercises: [
+        { name: 'DB RDL', sets: [{weight:55,reps:10},{weight:55,reps:10},{weight:65,reps:7}] },
+        { name: 'Push Press', sets: [{weight:9,reps:10},{weight:12,reps:12},{weight:15,reps:8}] },
+        { name: 'Dumbbell Row (bent-over)', sets: [{weight:12,reps:12},{weight:15,reps:8},{weight:15,reps:8}] },
+        { name: 'Glute Bridge', sets: [{weight:27.5,reps:10},{weight:27.5,reps:10},{weight:27.5,reps:10}] },
+        { name: 'Plank', sets: [{weight:0,reps:45},{weight:0,reps:45},{weight:0,reps:45}] },
+      ]
+    },
+  ];
+  saveData(data);
+}
+if (!data.steps || data.steps.length === 0) {
+  data.steps = [
+    { date: '2026-02-10', steps: 9200 },
+    { date: '2026-02-11', steps: 8500 },
+    { date: '2026-02-12', steps: 9800 },
+    { date: '2026-02-13', steps: 11200 },
+    { date: '2026-02-14', steps: 8100 },
+    { date: '2026-02-15', steps: 7400 },
+    { date: '2026-02-16', steps: 6200 },
+    { date: '2026-02-17', steps: 7800 },
+    { date: '2026-02-18', steps: 8600 },
+    { date: '2026-02-19', steps: 1200 },
+    { date: '2026-02-20', steps: 1500 },
+    { date: '2026-02-21', steps: 7200 },
+    { date: '2026-02-22', steps: 7000 },
+    { date: '2026-02-23', steps: 5200 },
+    { date: '2026-02-24', steps: 5800 },
+    { date: '2026-02-25', steps: 6400 },
+    { date: '2026-02-26', steps: 5100 },
+    { date: '2026-02-27', steps: 3200 },
+    { date: '2026-02-28', steps: 5400 },
+    { date: '2026-03-01', steps: 5000 },
+    { date: '2026-03-02', steps: 8800 },
+    { date: '2026-03-03', steps: 9200 },
+    { date: '2026-03-04', steps: 9600 },
+    { date: '2026-03-05', steps: 9400 },
+    { date: '2026-03-06', steps: 8800 },
+    { date: '2026-03-07', steps: 8900 },
+    { date: '2026-03-08', steps: 6200 },
+    { date: '2026-03-09', steps: 5800 },
+    { date: '2026-03-10', steps: 8616 },
+  ];
+  saveData(data);
 }
 
 // ═══ UTILITIES ═══
@@ -1595,6 +1630,37 @@ function today() {
 function formatDate(d) {
   const date = new Date(d + 'T12:00:00');
   return date.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══ NAV ═══
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('bn-' + name)?.classList.add('active');
+
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const pages = ['today','log','progress','science','history','data'];
+  navBtns[pages.indexOf(name)]?.classList.add('active');
+
+  if (name === 'today') renderToday();
+  if (name === 'log') {
+    const type = document.getElementById('workoutType').value;
+    populateExerciseList(type);
+  }
+  if (name === 'progress') setTimeout(drawCharts, 50);
+  if (name === 'history') renderHistory();
+  if (name === 'data') renderDataPage();
 }
 
 // ═══ DATE HEADER ═══
@@ -1695,7 +1761,6 @@ const WARMUPS = {
     { name: 'Air Squats', reps: '1×10' },
     { name: 'Band Pull-Aparts', reps: '1×15' },
   ],
-  'Mobility': [],
 };
 
 // Exercise types: 'compound' = ramping, 'isolation' = straight, 'bodyweight' = fixed reps, 'timed' = seconds
@@ -1723,7 +1788,6 @@ const EXERCISES = {
     { name: 'Glute Bridge',             base: 28,   type: 'compound'  },
     { name: 'Plank',                    base: 0,    type: 'timed', defaultSecs: 30 },
   ],
-  'Mobility': [],
 };
 
 // ═══════════════════════════════════════════════════
@@ -1816,15 +1880,13 @@ function getExerciseContext(exerciseName, baseWeight) {
 function getRunPrescription() {
   const sorted = data.runs.slice().sort((a, b) => b.date.localeCompare(a.date));
   const last = sorted[0];
-  const nextRunType = getNextRunType(); // 'easy' or 'tempo'
 
   if (!last) {
     return {
-      runType: 'easy',
-      type: '🫁 Easy 5K',
-      dist: 5.0,
-      pace: 8.0,
-      reason: 'No runs logged yet. Start with your easy 5K — keep HR under 155, conversational pace. This builds your aerobic base safely.',
+      type: '🚶 First Run',
+      dist: 2.5,
+      pace: 10.5,
+      reason: 'No runs logged yet. Start easy — 2–3km at a comfortable conversational pace.',
       urgency: 'var(--text2)',
       daysSince: 999,
     };
@@ -1838,62 +1900,53 @@ function getRunPrescription() {
 
   let type, dist, pace, reason, urgency;
 
-  if (nextRunType === 'easy') {
-    // ── Easy 5K prescription ──
-    // Always 5km, HR <155, conversational. Pace adjusts for gap.
-    dist = 5.0;
-    if (daysSince <= 7) {
-      // Find last easy run to gauge pace
-      const lastEasy = sorted.find(r => (r.runType || 'easy') === 'easy');
-      pace = lastEasy ? parseFloat((lastEasy.pace * 1.0).toFixed(2)) : 8.0;
-      type = '🫁 Easy 5K';
-      reason = `Your easy run today — keep HR under 155 the whole way. If your HR creeps up, slow down; don't push through it. This is your aerobic base session.`;
-      urgency = 'var(--run)';
-    } else if (daysSince <= 14) {
-      const lastEasy = sorted.find(r => (r.runType || 'easy') === 'easy');
-      pace = lastEasy ? parseFloat((lastEasy.pace * 1.05).toFixed(2)) : 8.5;
-      type = '🫁 Easy 5K — Ease Back';
-      reason = `${daysSince} days since your last run. Go easy — slower than usual, HR well under 155. Your aerobic system will bounce back quickly.`;
-      urgency = 'var(--warning)';
+  if (daysSince <= 3) {
+    // Fresh — progress normally
+    if (lastDist < 4) {
+      dist = parseFloat(Math.min(5.0, lastDist * 1.10).toFixed(1));
+      pace = parseFloat((lastPace * 0.99).toFixed(2));
+      type = '📏 Build Distance';
+      reason = `Last run ${daysSince}d ago (${lastDist}km). Add 10% distance — your aerobic system is primed.`;
     } else {
-      pace = 9.0;
-      type = '🫁 Easy 5K — Restart';
-      reason = `${daysSince} days off. Start very easy — HR under 145 if possible. Don't worry about pace today, just get the legs moving again.`;
-      urgency = 'var(--danger)';
+      dist = lastDist;
+      pace = parseFloat((best5K * 0.97).toFixed(2));
+      type = '⚡ Tempo Push';
+      reason = `Last run ${daysSince}d ago. You're on schedule — push pace 3% faster than your best (${fmtPace(best5K)}/km).`;
     }
+    urgency = 'var(--strength)';
+
+  } else if (daysSince <= 7) {
+    // Normal gap — same effort, slight distance build
+    dist = parseFloat(Math.min(5.0, lastDist * 1.05).toFixed(1));
+    pace = lastPace;
+    type = '🏃 Steady Run';
+    reason = `${daysSince} days since your last run — good rhythm. Match your last pace, add a little distance.`;
+    urgency = 'var(--accent2)';
+
+  } else if (daysSince <= 14) {
+    // 1–2 week gap — ease back in
+    dist = parseFloat((lastDist * 0.85).toFixed(1));
+    pace = parseFloat((lastPace * 1.05).toFixed(2));
+    type = '🌿 Ease Back In';
+    reason = `${daysSince} days off. Aerobic base starts fading after ~10 days. Run shorter and slower — don't force last session's pace.`;
+    urgency = 'var(--warning)';
 
   } else {
-    // ── Tempo run prescription ──
-    // Comfortably hard — based on best 5K pace with gap adjustments.
-    if (daysSince <= 7) {
-      dist = lastDist >= 4 ? lastDist : 5.0;
-      pace = parseFloat((best5K * 0.97).toFixed(2));
-      type = '⚡ Tempo Run';
-      reason = `Your tempo session — comfortably hard, RPE 7–8. Target pace is 3% faster than your best 5K (${fmtPace(best5K)}/km). Should feel hard to hold a conversation.`;
-      urgency = 'var(--accent)';
-    } else if (daysSince <= 14) {
-      dist = 5.0;
-      pace = parseFloat((best5K * 1.02).toFixed(2));
-      type = '⚡ Tempo Run — Conservative';
-      reason = `${daysSince} days since last run — scale back your tempo slightly. Target is 2% slower than your best 5K. Still a quality session, just not an all-out push.`;
-      urgency = 'var(--warning)';
-    } else {
-      // Long gap — skip tempo, revert to easy
-      dist = 5.0;
-      pace = 8.5;
-      type = '🫁 Easy 5K (gap too long for tempo)';
-      reason = `${daysSince} days off — jumping straight into a tempo run after a long break risks injury and poor performance. Run easy today and do your tempo next session once you've re-established the base.`;
-      urgency = 'var(--danger)';
-    }
-
-    // If last session was a hard RPE, back off slightly
-    if (lastRPE >= 8) {
-      pace = parseFloat((pace * 1.03).toFixed(2));
-      reason += ' Last session was high RPE — slight intensity reduction applied.';
-    }
+    // 2+ weeks — restart conservatively
+    dist = Math.min(3.0, parseFloat((lastDist * 0.75).toFixed(1)));
+    pace = parseFloat((lastPace * 1.10).toFixed(2));
+    type = '🔄 Restart Run';
+    reason = `${daysSince} days since last run — significant aerobic detraining has occurred. Start short and easy. Your lungs will remind you quickly.`;
+    urgency = 'var(--danger)';
   }
 
-  return { runType: nextRunType, type, dist, pace, reason, urgency, daysSince, lastDist, lastPace };
+  // RPE adjustment
+  if (lastRPE >= 8) {
+    pace = parseFloat((pace * 1.04).toFixed(2));
+    reason += ' Last session was hard — backing off intensity slightly.';
+  }
+
+  return { type, dist, pace, reason, urgency, daysSince, lastDist, lastPace };
 }
 
 // ── Set Scheme Generator ──
@@ -1984,33 +2037,11 @@ function getSetScheme(exType, workingWeight, gapDays, defaultSecs) {
 
 // Target frequencies (ideal days between sessions)
 const TRAINING_TARGETS = {
-  'Lower Body':  { idealDays: 7,   importance: 1.0, emoji: '🦵', color: 'var(--strength)'  },
-  'Upper Body':  { idealDays: 7,   importance: 1.0, emoji: '💪', color: 'var(--accent)'    },
-  'Run':         { idealDays: 3.5, importance: 1.1, emoji: '🏃', color: 'var(--run)'       },
-  'Mobility':    { idealDays: 7,   importance: 0.7, emoji: '🧘', color: 'var(--accent2)'   },
+  'Lower Body':  { idealDays: 7,  importance: 1.0, emoji: '🦵', color: 'var(--strength)'  },
+  'Upper Body':  { idealDays: 7,  importance: 1.0, emoji: '💪', color: 'var(--accent)'    },
+  'Full Body':   { idealDays: 7,  importance: 0.9, emoji: '⚡', color: 'var(--warning)'   },
+  'Run':         { idealDays: 3.5,importance: 1.1, emoji: '🏃', color: 'var(--run)'       },
 };
-
-// Full Body is NOT a regular rotation slot.
-// It surfaces only as a reactivation session when both Lower and Upper are 14+ days overdue.
-// A logged Full Body session resets both Lower and Upper Body clocks.
-function checkFullBodyReactivation() {
-  const lowerDays = daysSinceLast('Lower Body');
-  const upperDays = daysSinceLast('Upper Body');
-  const lastFullBody = data.workouts
-    .filter(w => w.type === 'Full Body')
-    .sort((a, b) => b.date.localeCompare(a.date))[0];
-  const fullBodyDays = lastFullBody
-    ? Math.floor((new Date(today()) - new Date(lastFullBody.date + 'T12:00:00')) / 86400000)
-    : 999;
-  // Treat a Full Body as resetting both Lower and Upper clocks
-  const effectiveLower = Math.min(lowerDays, fullBodyDays);
-  const effectiveUpper = Math.min(upperDays, fullBodyDays);
-  return {
-    active: effectiveLower >= 14 && effectiveUpper >= 14,
-    lowerDays: effectiveLower,
-    upperDays: effectiveUpper,
-  };
-}
 
 // Returns days since last instance of this activity type
 function daysSinceLast(type) {
@@ -2042,151 +2073,12 @@ function calcAllDebts() {
   })).sort((a, b) => b.score - a.score);
 }
 
-// Returns the last N logged activities in chronological order (most recent last).
-// Each item: { kind: 'strength'|'run', type: 'Lower Body'|'Upper Body'|'Full Body'|'Run', date, runType? }
-function getRecentActivitySequence(n = 3) {
-  const strengthEntries = (data.workouts || []).map(w => ({ kind: 'strength', type: w.type, date: w.date }));
-  const runEntries      = (data.runs    || []).map(r => ({ kind: 'run', type: 'Run', date: r.date, runType: r.runType || 'easy' }));
-  return [...strengthEntries, ...runEntries]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-n);
-}
-
-// Determine what type of run to recommend next based on the alternating easy/tempo pattern.
-// Returns 'easy' or 'tempo'.
-function getNextRunType() {
-  const lastRun = data.runs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
-  if (!lastRun) return 'easy'; // default to easy for first run
-  const lastType = lastRun.runType || 'easy';
-  return lastType === 'easy' ? 'tempo' : 'easy';
-}
-
-// Sequence-aware debt scoring.
-// Applies two science-based penalties / boosts on top of the raw debt score:
-//
-//  1. "No run after leg day" rule:
-//     If the most recent session was a Lower Body strength workout done within
-//     the last 2 days, running gets a heavy penalty (legs need ~48 h to recover
-//     before impact activity).
-//
-//  2. "Third-day cardio" rule:
-//     If the last two distinct session types were Lower Body then Upper Body
-//     (in that order, both within the last 4 days), running gets a large boost
-//     because the logical recovery day is a low-impact cardio day.
-//
-// Returns debts sorted by adjusted score (highest first), each entry also
-// carries { adjustedScore, sequenceNote } for display.
-function calcSequenceAdjustedDebts() {
-  const debts = calcAllDebts(); // base debt order
-  const seq   = getRecentActivitySequence(3);
-
-  // Full Body reactivation override — takes precedence over all other logic
-  const fb = checkFullBodyReactivation();
-  if (fb.active) {
-    // Inject Full Body as a synthetic debt entry at the top
-    const fullBodyEntry = {
-      type: 'Full Body',
-      days: Math.max(fb.lowerDays, fb.upperDays),
-      score: 99, // guaranteed top
-      adjustedScore: 99,
-      sequenceNote: `Both Lower Body (${fb.lowerDays === 999 ? 'never' : fb.lowerDays + 'd ago'}) and Upper Body (${fb.upperDays === 999 ? 'never' : fb.upperDays + 'd ago'}) are significantly overdue. A Full Body circuit reactivates everything at lower intensity — safer than jumping straight into a heavy single-group session after this long a gap.`,
-      target: { idealDays: 7, importance: 1.0, emoji: '⚡', color: 'var(--warning)' },
-    };
-    return [fullBodyEntry, ...debts.map(d => ({ ...d, adjustedScore: d.score, sequenceNote: null }))];
-  }
-
-  // Identify last two distinct activities (skip same-day duplicates of same type)
-  const distinctLast = [];
-  for (let i = seq.length - 1; i >= 0 && distinctLast.length < 2; i--) {
-    if (distinctLast.length === 0 || distinctLast[distinctLast.length - 1].type !== seq[i].type) {
-      distinctLast.unshift(seq[i]);
-    }
-  }
-
-  const lastActivity   = distinctLast[distinctLast.length - 1]; // most recent
-  const secondLastActivity = distinctLast.length >= 2 ? distinctLast[distinctLast.length - 2] : null;
-
-  const todayStr = today();
-  const daysSinceActivity = (act) => act
-    ? Math.floor((new Date(todayStr) - new Date(act.date + 'T12:00:00')) / 86400000)
-    : 999;
-
-  const lastDays       = daysSinceActivity(lastActivity);
-  const secondLastDays = daysSinceActivity(secondLastActivity);
-
-  // Determine which rules fire
-  const isLegDayRecent =
-    lastActivity &&
-    (lastActivity.type === 'Lower Body' || lastActivity.type === 'Full Body') &&
-    lastDays <= 2;
-
-  const isThirdDayPattern =
-    secondLastActivity &&
-    (secondLastActivity.type === 'Lower Body' || secondLastActivity.type === 'Full Body') &&
-    secondLastDays <= 4 &&
-    lastActivity &&
-    lastActivity.type === 'Upper Body' &&
-    lastDays <= 3;
-
-  // CNS fatigue pattern: lower + upper + run within ~5 days = body needs mobility, not more load
-  // Look back through last 3 distinct activities for the triad
-  const recentTypes = getRecentActivitySequence(6)
-    .filter(a => a.date >= (() => { const d = new Date(todayStr); d.setDate(d.getDate() - 5); return d.toISOString().slice(0,10); })())
-    .map(a => a.kind === 'run' ? 'Run' : a.type);
-  const hasLower = recentTypes.includes('Lower Body') || recentTypes.includes('Full Body');
-  const hasUpper = recentTypes.includes('Upper Body');
-  const hasRun   = recentTypes.includes('Run');
-  const isCNSTriad = hasLower && hasUpper && hasRun && lastDays <= 2;
-
-  return debts.map(d => {
-    let adjustedScore = d.score;
-    let sequenceNote  = null;
-
-    if (d.type === 'Mobility') {
-      if (isCNSTriad) {
-        // All three stimuli hit recently — mobility is the ideal next session
-        adjustedScore = d.score + 2.5;
-        sequenceNote  = `You've done lower body, upper body, and a run in the last 5 days. Your CNS is accumulated-fatigued even if your muscles don't feel wrecked. Mobility or Pilates now accelerates recovery, restores range of motion, and sets you up for a better strength session in 1–2 days.`;
-      }
-    } else if (d.type === 'Run') {
-      const nextRunType = getNextRunType();
-      if (isLegDayRecent && !isThirdDayPattern) {
-        if (nextRunType === 'tempo') {
-          // Tempo after leg day: heavy penalty — high impact, same muscles
-          adjustedScore = Math.max(0, d.score - 1.5);
-          sequenceNote  = `A tempo run after ${lastActivity.type} (${lastDays === 0 ? 'today' : lastDays + 'd ago'}) stresses the same muscles before they've recovered. Your next run should be a tempo — but wait one more day, or swap to your easy run today instead.`;
-        } else {
-          // Easy run after leg day: slight penalty — impact still present but manageable
-          adjustedScore = Math.max(0, d.score - 0.6);
-          sequenceNote  = `Your legs are still recovering from ${lastActivity.type} (${lastDays === 0 ? 'today' : lastDays + 'd ago'}). An easy 5K at HR <155 is fine — low intensity won't interfere with recovery. Avoid pushing the pace.`;
-        }
-      } else if (isThirdDayPattern) {
-        // Lower → Upper → ?: perfect day for cardio, and promote the right type
-        adjustedScore = d.score + 1.8;
-        const runTypeLabel = nextRunType === 'tempo' ? 'tempo run — your legs are fresh' : 'easy 5K — good active recovery day';
-        sequenceNote  = `Lower body then upper body done — ideal day for your ${runTypeLabel}. Your muscles need a break from lifting and aerobic work supports recovery.`;
-      }
-    } else {
-      // For strength sessions: if third-day cardio pattern applies, slightly
-      // de-prioritize strength relative to the boosted run.
-      // If CNS triad is active, more aggressively de-prioritize all strength.
-      if (isCNSTriad) {
-        adjustedScore = Math.max(0, d.score - 0.8);
-      } else if (isThirdDayPattern) {
-        adjustedScore = Math.max(0, d.score - 0.3);
-      }
-    }
-
-    return { ...d, adjustedScore, sequenceNote };
-  }).sort((a, b) => b.adjustedScore - a.adjustedScore);
-}
-
 // ── Training Intelligence Card ──
 function renderTrainingIntelCard() {
   const el = document.getElementById('trainingIntelCard');
   if (!el) return;
 
-  const debts = calcSequenceAdjustedDebts();
+  const debts = calcAllDebts();
   const todayHasWorkout = data.workouts.some(w => w.date === today());
   const todayHasRun = data.runs.some(r => r.date === today());
 
@@ -2244,14 +2136,8 @@ function renderTrainingIntelCard() {
   // Human reason text
   const neverDone = debts.filter(d => d.days === 999);
   let reason;
-  if (top.sequenceNote) {
-    reason = `🔬 ${top.sequenceNote}`;
-  } else if (neverDone.length > 0 && neverDone[0].type !== 'Mobility') {
+  if (neverDone.length > 0) {
     reason = `You haven't logged a <strong>${neverDone[0].type}</strong> session yet. Start here to give the app something to learn from.`;
-  } else if (top.type === 'Full Body') {
-    reason = `Both Lower Body and Upper Body are significantly overdue. A Full Body circuit at reduced weight reactivates everything safely — better than going heavy on one group after this long a break.`;
-  } else if (top.type === 'Mobility') {
-    reason = `A mobility or Pilates session is due. It keeps your joints healthy, improves movement quality for lifting and running, and activates the parasympathetic system for faster recovery.`;
   } else if (top.type === 'Run' && top.score >= 1) {
     reason = `Your last run was ${top.days} days ago. Running twice a week keeps your aerobic fitness building — without it, your cardio base slowly fades.`;
   } else if (top.score >= 2) {
@@ -2277,7 +2163,7 @@ function renderTrainingIntelCard() {
 // ── Next Workout Card (driven by debt engine) ──
 function renderNextWorkout() {
   const card = document.getElementById('nextWorkoutCard');
-  const debts = calcSequenceAdjustedDebts();
+  const debts = calcAllDebts();
   const top = debts[0];
 
   const todayHasWorkout = data.workouts.some(w => w.date === today());
@@ -2300,67 +2186,17 @@ function renderNextWorkout() {
     return;
   }
 
-  // Sequence note banner (shown when sequence logic overrides raw debt order)
-  const sequenceNoteBanner = top.sequenceNote
-    ? `<div style="font-size:11px;color:var(--accent2);font-family:'Karla',sans-serif;padding:9px 11px;background:rgba(122,106,82,0.08);border-radius:8px;border:1px solid rgba(122,106,82,0.22);margin-bottom:12px;line-height:1.55">🔬 ${top.sequenceNote}</div>`
-    : '';
-
-  // If run is top priority AND no strength done today — recommend run
+  // If run is most overdue AND no strength done today — recommend run
   if (top.type === 'Run' && !todayHasRun && !todayHasWorkout) {
     card.innerHTML = `
       <div class="next-tag" style="color:var(--run)">🏃 Run Priority</div>
       <div class="next-title">Running is most overdue</div>
-      ${sequenceNoteBanner}
       <div class="next-sub">See the Run Prescription below for today's specific target.</div>`;
     return;
   }
 
   // Strength workout needed — determine which type
-  const workoutType = (top.type === 'Run') ? debts.find(d => d.type !== 'Run' && d.type !== 'Mobility')?.type || 'Lower Body' : top.type;
-
-  // Full Body reactivation card
-  if (workoutType === 'Full Body') {
-    const fb = checkFullBodyReactivation();
-    card.innerHTML = `
-      <div class="next-tag" style="color:var(--warning)">⚡ Reactivation Session</div>
-      <div class="next-title">Full Body Circuit</div>
-      <div class="next-sub">Both muscle groups overdue · weights reduced 20% · focus on form</div>
-      ${top.sequenceNote ? `<div style="font-size:11px;color:var(--warning);font-family:'Karla',sans-serif;padding:9px 11px;background:rgba(196,146,58,0.07);border-radius:8px;border:1px solid rgba(196,146,58,0.22);margin-bottom:12px;line-height:1.55">🔬 ${top.sequenceNote}</div>` : ''}
-      <div class="exercise-list">${(EXERCISES['Full Body'] || []).map(ex => {
-        const ctx = getExerciseContext(ex.name, ex.base);
-        const isBodyweight = ex.base === 0;
-        return `<div class="exercise-row">
-          <div style="flex:1">
-            <div class="ex-name">${ex.name}</div>
-            <div class="ex-prev" style="color:${isBodyweight ? 'var(--text3)' : 'var(--warning)'}">
-              ${isBodyweight ? '3 sets · bodyweight' : `3 sets · ${Math.round(ctx.weight * 0.8)} lbs (−20%)`}
-            </div>
-          </div>
-          <div class="ex-target" style="color:var(--warning)">${isBodyweight ? 'BW' : Math.round(ctx.weight * 0.8) + ' lbs'}</div>
-        </div>`;
-      }).join('')}</div>`;
-    return;
-  }
-
-  // Mobility gets its own card — no exercise list
-  if (workoutType === 'Mobility') {
-    const lastDone = daysSinceLast('Mobility');
-    const sinceLabel = lastDone === 999 ? 'First session' : lastDone === 1 ? 'Last done yesterday' : lastDone === 0 ? 'Done today' : `Last done ${lastDone} days ago`;
-    card.innerHTML = `
-      <div class="next-tag" style="color:var(--accent2)">🧘 Recovery Priority</div>
-      <div class="next-title">Mobility / Pilates</div>
-      <div class="next-sub">${sinceLabel} · 20–40 min · no equipment needed</div>
-      ${top.sequenceNote ? `<div style="font-size:11px;color:var(--accent2);font-family:'Karla',sans-serif;padding:9px 11px;background:rgba(122,106,82,0.08);border-radius:8px;border:1px solid rgba(122,106,82,0.22);margin-bottom:12px;line-height:1.55">🔬 ${top.sequenceNote}</div>` : ''}
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div class="exercise-row"><div style="flex:1"><div class="ex-name">Hip flexor stretch + 90/90</div><div class="ex-prev">2 min/side</div></div></div>
-        <div class="exercise-row"><div style="flex:1"><div class="ex-name">Thread the needle (thoracic)</div><div class="ex-prev">8 reps/side</div></div></div>
-        <div class="exercise-row"><div style="flex:1"><div class="ex-name">Cat-cow + spinal wave</div><div class="ex-prev">10 slow reps</div></div></div>
-        <div class="exercise-row"><div style="flex:1"><div class="ex-name">Pilates dead bug</div><div class="ex-prev">3×10</div></div></div>
-        <div class="exercise-row"><div style="flex:1"><div class="ex-name">World's greatest stretch</div><div class="ex-prev">5 reps/side</div></div></div>
-        <div class="exercise-row"><div style="flex:1"><div class="ex-name">Or: full Pilates class / YouTube flow</div><div class="ex-prev" style="color:var(--accent2)">any duration counts ✓</div></div></div>
-      </div>`;
-    return;
-  }
+  const workoutType = (top.type === 'Run') ? debts.find(d => d.type !== 'Run')?.type || 'Lower Body' : top.type;
   const exercises = EXERCISES[workoutType] || EXERCISES['Lower Body'];
 
   const lastDone = daysSinceLast(workoutType);
@@ -2397,7 +2233,6 @@ function renderNextWorkout() {
     <div class="next-tag">↑ Highest Training Debt</div>
     <div class="next-title">${workoutType}</div>
     <div class="next-sub">${sinceLabel} · 45–55 min target</div>
-    ${sequenceNoteBanner}
     ${deloadNotice}
     <div class="exercise-list">${exRows}</div>`;
 }
@@ -2415,16 +2250,9 @@ function renderRunRecommendation() {
                     rx.daysSince === 1   ? 'Last run: yesterday' :
                     `Last run: ${rx.daysSince} days ago`;
 
-  const runTypeBadge = rx.runType === 'easy'
-    ? `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:rgba(122,106,82,0.12);color:var(--run);border:1px solid rgba(122,106,82,0.3);font-family:'Karla',sans-serif">🫁 Easy · HR &lt;155</span>`
-    : `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:rgba(184,92,56,0.10);color:var(--accent);border:1px solid rgba(184,92,56,0.28);font-family:'Karla',sans-serif">⚡ Tempo · RPE 7–8</span>`;
-
   card.innerHTML = `
     <div style="background:rgba(122,106,82,0.06);border:1px solid ${rx.urgency}40;border-radius:var(--radius);padding:16px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <div style="font-size:10px;letter-spacing:2px;color:${rx.urgency};text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600">Run Prescription</div>
-        ${runTypeBadge}
-      </div>
+      <div style="font-size:10px;letter-spacing:2px;color:${rx.urgency};text-transform:uppercase;margin-bottom:6px;font-family:'Karla',sans-serif;font-weight:600">Run Prescription</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;margin-bottom:4px">${rx.type}</div>
       <div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;margin-bottom:12px">${daysLabel}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
@@ -2458,187 +2286,7 @@ function renderToday() {
   renderTrainingIntelCard();
   renderNextWorkout();
   renderRunRecommendation();
-  renderTomorrow();
   renderStepsCard();
-}
-
-// ── Tomorrow Preview ──
-// Simulates what the engine would recommend tomorrow by temporarily
-// injecting today's top recommendation as "completed today", then
-// re-running the sequence engine with daysSinceLast shifted by +1.
-function renderTomorrow() {
-  const card = document.getElementById('tomorrowCard');
-  if (!card) return;
-
-  // Get today's recommendation first
-  const todayDebts = calcSequenceAdjustedDebts();
-  const todayTop = todayDebts[0];
-
-  // Tomorrow's date string
-  const tomorrowStr = (() => {
-    const d = new Date(today() + 'T12:00:00');
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  })();
-
-  // Simulate tomorrow: temporarily override today() to return tomorrow's date,
-  // and inject today's recommended session as if completed.
-  // We do this non-destructively by computing debts manually with +1 day offset.
-  function daysSinceLastTomorrow(type) {
-    const todayType = todayTop.type;
-    // If today's recommendation is Full Body, it resets both Lower and Upper clocks
-    if (todayType === 'Full Body' && (type === 'Lower Body' || type === 'Upper Body')) {
-      return 1;
-    }
-    // If today's recommendation matches this type, treat it as done today
-    const todayIsRun = todayType === 'Run';
-    if (
-      (type === 'Run' && todayIsRun) ||
-      (type !== 'Run' && type === todayType)
-    ) {
-      return 1;
-    }
-    let last;
-    if (type === 'Run') {
-      last = data.runs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
-    } else {
-      // Also count Full Body sessions as resetting Lower/Upper clocks in history
-      const directLast = data.workouts.filter(w => w.type === type)
-        .sort((a, b) => b.date.localeCompare(a.date))[0];
-      const fullBodyLast = (type === 'Lower Body' || type === 'Upper Body')
-        ? data.workouts.filter(w => w.type === 'Full Body').sort((a, b) => b.date.localeCompare(a.date))[0]
-        : null;
-      // Use whichever is more recent
-      if (directLast && fullBodyLast) {
-        last = directLast.date >= fullBodyLast.date ? directLast : fullBodyLast;
-      } else {
-        last = directLast || fullBodyLast;
-      }
-    }
-    if (!last) return 999;
-    return Math.floor((new Date(tomorrowStr) - new Date(last.date + 'T12:00:00')) / 86400000);
-  }
-
-  function debtScoreTomorrow(type) {
-    const t = TRAINING_TARGETS[type];
-    if (!t) return 0; // Full Body not in TRAINING_TARGETS
-    const days = daysSinceLastTomorrow(type);
-    return (days / t.idealDays) * t.importance;
-  }
-
-  // Check Full Body reactivation from tomorrow's perspective
-  const tomorrowLowerDays = daysSinceLastTomorrow('Lower Body');
-  const tomorrowUpperDays = daysSinceLastTomorrow('Upper Body');
-  const fbTomorrow = tomorrowLowerDays >= 14 && tomorrowUpperDays >= 14;
-
-  if (fbTomorrow) {
-    card.innerHTML = `
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
-        <div style="font-size:10px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600;margin-bottom:8px">Up Next</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600">⚡ Full Body Circuit</div>
-        <div style="font-size:11px;color:var(--warning);font-family:'Karla',sans-serif;margin-top:4px">Reactivation — both muscle groups overdue</div>
-      </div>`;
-    return;
-  }
-
-  const tomorrowDebts = Object.keys(TRAINING_TARGETS).map(type => ({
-    type,
-    days: daysSinceLastTomorrow(type),
-    score: debtScoreTomorrow(type),
-    target: TRAINING_TARGETS[type],
-  })).sort((a, b) => b.score - a.score);
-
-  // Apply sequence logic from tomorrow's perspective
-  // Last activity = today's recommendation; second last = whatever came before today
-  const realSeq = getRecentActivitySequence(3);
-  const todayActivity = { kind: todayTop.type === 'Run' ? 'run' : 'strength', type: todayTop.type, date: today() };
-  const seqWithToday = [...realSeq.filter(a => a.date < today()), todayActivity];
-  const lastAct = seqWithToday[seqWithToday.length - 1];
-  const secondLastAct = seqWithToday.length >= 2 ? seqWithToday[seqWithToday.length - 2] : null;
-
-  const isLegDayTomorrow = lastAct &&
-    (lastAct.type === 'Lower Body' || lastAct.type === 'Full Body') &&
-    lastAct.date === today(); // leg day was today → still recovering tomorrow
-
-  const isThirdDayTomorrow = secondLastAct &&
-    (secondLastAct.type === 'Lower Body' || secondLastAct.type === 'Full Body') &&
-    lastAct && lastAct.type === 'Upper Body';
-
-  // Recenttypes for CNS triad check (last 5 days including today's session)
-  const recentTypesTomorrow = seqWithToday
-    .filter(a => a.date >= (() => { const d = new Date(tomorrowStr); d.setDate(d.getDate() - 5); return d.toISOString().slice(0,10); })())
-    .map(a => a.kind === 'run' ? 'Run' : a.type);
-  const isCNSTriadTomorrow =
-    (recentTypesTomorrow.includes('Lower Body') || recentTypesTomorrow.includes('Full Body')) &&
-    recentTypesTomorrow.includes('Upper Body') &&
-    recentTypesTomorrow.includes('Run');
-
-  const adjustedTomorrow = tomorrowDebts.map(d => {
-    let adjustedScore = d.score;
-    let note = null;
-    if (d.type === 'Mobility' && isCNSTriadTomorrow) {
-      adjustedScore = d.score + 2.5;
-      note = 'CNS accumulated fatigue — mobility recommended';
-    } else if (d.type === 'Run') {
-      const nextRun = getNextRunType();
-      // If today's top is a run, tomorrow's run type flips
-      const tomorrowRunType = todayTop.type === 'Run' ? (nextRun === 'easy' ? 'tempo' : 'easy') : nextRun;
-      if (isLegDayTomorrow && !isThirdDayTomorrow) {
-        if (tomorrowRunType === 'tempo') {
-          adjustedScore = Math.max(0, d.score - 1.5);
-          note = 'Tempo after leg day — not ideal';
-        } else {
-          adjustedScore = Math.max(0, d.score - 0.6);
-          note = 'Easy run OK after leg day at low HR';
-        }
-      } else if (isThirdDayTomorrow) {
-        adjustedScore = d.score + 1.8;
-        note = `${tomorrowRunType === 'tempo' ? 'Tempo' : 'Easy'} run — ideal after lower + upper`;
-      }
-    } else if (d.type !== 'Mobility') {
-      if (isCNSTriadTomorrow) adjustedScore = Math.max(0, d.score - 0.8);
-      else if (isThirdDayTomorrow) adjustedScore = Math.max(0, d.score - 0.3);
-    }
-    return { ...d, adjustedScore, note };
-  }).sort((a, b) => b.adjustedScore - a.adjustedScore);
-
-  const top = adjustedTomorrow[0];
-  const emoji = top.target.emoji;
-  const label = top.type;
-  const noteHtml = top.note
-    ? `<div style="font-size:11px;color:var(--accent2);font-family:'Karla',sans-serif;margin-top:4px;line-height:1.5">🔬 ${top.note}</div>`
-    : '';
-
-  // Run type for tomorrow if it's a run
-  let runTypeBadge = '';
-  if (top.type === 'Run') {
-    const tomorrowRunType = todayTop.type === 'Run' ? (getNextRunType() === 'easy' ? 'tempo' : 'easy') : getNextRunType();
-    runTypeBadge = tomorrowRunType === 'easy'
-      ? `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(122,106,82,0.10);color:var(--run);border:1px solid rgba(122,106,82,0.25);font-family:'Karla',sans-serif;font-weight:600;margin-left:6px">🫁 Easy</span>`
-      : `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(184,92,56,0.08);color:var(--accent);border:1px solid rgba(184,92,56,0.22);font-family:'Karla',sans-serif;font-weight:600;margin-left:6px">⚡ Tempo</span>`;
-  }
-
-  card.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
-      <div style="font-size:10px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600;margin-bottom:8px">Up Next</div>
-      <div style="display:flex;align-items:center;gap:4px">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600">${emoji} ${label}</div>
-        ${runTypeBadge}
-      </div>
-      ${noteHtml}
-      <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">
-        ${adjustedTomorrow.slice(0, 4).map(d => {
-          const pct = Math.min(100, Math.round((d.adjustedScore / 2) * 100));
-          const barColor = d.adjustedScore >= 2 ? 'var(--danger)' : d.adjustedScore >= 1.3 ? 'var(--accent)' : d.adjustedScore >= 0.8 ? 'var(--warning)' : 'var(--run)';
-          const daysLabel = d.days === 999 ? 'never' : d.days === 1 ? '1d ago' : `${d.days}d ago`;
-          return `<div class="debt-row">
-            <div class="debt-label">${d.target.emoji} ${d.type}</div>
-            <div class="debt-track"><div class="debt-fill" style="width:${pct}%;background:${barColor}"></div></div>
-            <div class="debt-days" style="color:${barColor}">${daysLabel}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
 }
 
 // ═══ LOG TYPE SELECT ═══
@@ -2847,44 +2495,17 @@ function saveStrengthWorkout() {
 }
 
 // ═══ SAVE RUN ═══
-function selectRunType(type) {
-  document.getElementById('runTypeVal').value = type;
-  const easyBtn  = document.getElementById('runTypeEasy');
-  const tempoBtn = document.getElementById('runTypeTempo');
-  if (type === 'easy') {
-    easyBtn.style.cssText  = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.15);color:var(--run);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s`;
-    tempoBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s`;
-  } else {
-    tempoBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.12);color:var(--accent);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s`;
-    easyBtn.style.cssText  = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s`;
-  }
-}
-
-function selectEditRunType(type) {
-  document.getElementById('editRunTypeVal').value = type;
-  const easyBtn  = document.getElementById('editRunTypeEasy');
-  const tempoBtn = document.getElementById('editRunTypeTempo');
-  if (type === 'easy') {
-    easyBtn.style.cssText  = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--run);background:rgba(122,106,82,0.15);color:var(--run);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
-    tempoBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
-  } else {
-    tempoBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.12);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
-    easyBtn.style.cssText  = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
-  }
-}
-
 function saveRun() {
   const date = document.getElementById('runDate').value || today();
   const distance = parseFloat(document.getElementById('runDistance').value);
   const time = parseFloat(document.getElementById('runTime').value);
   const rpe = parseInt(document.getElementById('runRPE').value);
   const notes = document.getElementById('runNotes').value;
-  const runType = document.getElementById('runTypeVal').value || 'easy';
 
   if (!distance || !time) { showToast('Enter distance and time'); return; }
 
   const pace = time / distance;
-  data.runs.push({ date, distance, time, pace, rpe, notes, runType });
+  data.runs.push({ date, distance, time, pace, rpe, notes });
   saveData(data);
   showToast('🏃 Run saved!');
   showPage('today');
@@ -3212,7 +2833,6 @@ function openEditRun(idx) {
   document.getElementById('editRunRPE').value = r.rpe || 6;
   document.getElementById('editRpeVal').textContent = r.rpe || 6;
   document.getElementById('editRunNotes').value = r.notes || '';
-  selectEditRunType(r.runType || 'easy');
   updateEditRunPace();
   document.getElementById('editRunModal').classList.add('open');
 }
@@ -3250,7 +2870,6 @@ function saveEditRun() {
     pace: time / distance,
     rpe: parseInt(document.getElementById('editRunRPE').value),
     notes: document.getElementById('editRunNotes').value,
-    runType: document.getElementById('editRunTypeVal').value || 'easy',
   };
   saveData(data);
   closeModal('editRunModal');
@@ -4120,24 +3739,6 @@ function populateExerciseList(type) {
   exerciseCount = 0;
   setCounters = {};
 
-  // Mobility: no exercise logger — just a note
-  if (type === 'Mobility') {
-    const warmupEl = document.getElementById('warmupSection');
-    if (warmupEl) warmupEl.innerHTML = '';
-    const banner = document.getElementById('workoutDeloadBanner');
-    if (banner) banner.style.display = 'none';
-    document.getElementById('exerciseList').innerHTML = `
-      <div style="padding:14px 16px;background:rgba(122,106,82,0.07);border-radius:10px;border:1px solid rgba(122,106,82,0.22);margin-bottom:10px">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:var(--accent2);margin-bottom:6px">🧘 Mobility / Pilates</div>
-        <div style="font-size:12px;color:var(--text2);font-family:'Karla',sans-serif;line-height:1.65">
-          No exercise tracking for this session — just log the duration and any notes.<br><br>
-          This counts toward your training balance and recovery pattern.
-        </div>
-      </div>`;
-    setTimeout(updateWorkoutProgress, 100);
-    return;
-  }
-
   // Render warm-up section
   const warmupEl = document.getElementById('warmupSection');
   if (warmupEl) {
@@ -4324,13 +3925,21 @@ function clearAllData() {
   showToast('All data cleared');
 }
 
+// ═══ INIT ═══
+initHeader();
+initLogDates();
+renderToday();
+
+// Pre-populate exercise form with recommended weights
+populateExerciseList('Lower Body');
+
 // Handle page resize for charts
 window.addEventListener('resize', () => {
   if (document.getElementById('page-progress').classList.contains('active')) {
     drawCharts();
   }
 });
-
+} // end initApp
 </script>
 </body>
 </html>
