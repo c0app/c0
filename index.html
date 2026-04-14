@@ -865,6 +865,12 @@
   <!-- Week grid -->
   <div class="section-label">This Week</div>
   <div class="week-grid" id="weekGrid"></div>
+  <div style="display:flex;gap:12px;padding:0 2px;margin-bottom:4px;margin-top:-4px">
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--strength)"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Strength</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--run)"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Run</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--warning)"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Step workout</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--text3);opacity:0.4"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Steps</span></div>
+  </div>
 
   <!-- Streak -->
   <div class="streak-bar">
@@ -1033,7 +1039,7 @@
 
   <div class="graph-container">
     <div class="graph-title">Steps Per Day</div>
-    <div class="graph-sub">Dotted line = 8,000 step daily target. From Apple Health.</div>
+    <div class="graph-sub">Muted bars = below baseline · Green bars = at/above baseline · Orange bars ★ = step workout days (≥150% of baseline).</div>
     <canvas id="stepsChart" height="180"></canvas>
   </div>
 
@@ -1048,13 +1054,25 @@
     </div>
     <div class="stat-card">
       <div class="stat-val green" id="statDaysOver">—</div>
-      <div class="stat-label">Days over 8k</div>
+      <div class="stat-label">Days ≥ Baseline</div>
     </div>
     <div class="stat-card">
-      <div class="stat-val green" id="statStepsTrend">—</div>
-      <div class="stat-label">Trend</div>
+      <div class="stat-val orange" id="statStepWorkouts">—</div>
+      <div class="stat-label">Step Workouts</div>
     </div>
   </div>
+  <div class="card" style="margin-bottom:10px;padding:12px 16px">
+    <div style="font-size:10px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600;margin-bottom:6px">Adaptive Baseline</div>
+    <div style="font-size:12px;color:var(--text2);font-family:'Karla',sans-serif;line-height:1.65" id="baselineExplainer">
+      Loading…
+    </div>
+  </div>
+
+  <div class="section-label">Week-over-Week Steps</div>
+  <div class="card" style="margin-bottom:10px;padding:14px 16px" id="stepWoWCard">
+    <div style="font-size:12px;color:var(--text3);font-family:'Karla',sans-serif">Log more steps to see your week comparison.</div>
+  </div>
+
   <div class="card">
     <div style="margin-bottom:14px">
       <div class="card-row">
@@ -1124,8 +1142,14 @@
   </div>
 
   <div class="science-card blue">
-    <div class="science-icon">🏃</div>
-    <div class="science-title">Running to 5K in 30 min</div>
+    <div class="science-icon">👟</div>
+    <div class="science-title">Steps & Your Adaptive Baseline</div>
+    <div class="science-body">
+      The WHO identifies 7,000–10,000 steps/day as the range where cardiovascular, metabolic, and longevity benefits become measurable. c0 sets your personal baseline from your rolling 14-day average (floored at 7,000). A <strong>step workout</strong> is automatically recognized when you hit 150% of that baseline — the threshold where walking transitions from background activity into a meaningful aerobic stimulus, equivalent to ~30–45 min of moderate-intensity exercise. Your baseline adapts as your habits change.
+    </div>
+  </div>
+
+
     <div class="science-body">
       Current target: 6:00 min/km. Research shows 10% weekly mileage increases are safe. Two runs per week with varied intensity (one easy, one moderate) outperforms two hard runs for aerobic adaptation and injury prevention.
     </div>
@@ -1284,7 +1308,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">Log Steps</div>
-    <div class="modal-sub">From Oura Ring or Apple Watch</div>
+    <div class="modal-sub" id="stepsModalSub">From Oura Ring or Apple Watch</div>
     <div class="form-group">
       <label class="form-label">Date</label>
       <input type="date" class="form-input" id="stepsDate">
@@ -1627,6 +1651,9 @@ function renderWeekGrid() {
 
     const hasS = data.workouts.some(w => w.date === ds);
     const hasR = data.runs.some(r => r.date === ds);
+    const stepEntry = data.steps.find(s => s.date === ds);
+    const hasStepWorkout = stepEntry && isStepWorkout(stepEntry.steps);
+    const hasSteps = !!stepEntry;
 
     const cell = document.createElement('div');
     cell.className = 'day-cell' +
@@ -1644,6 +1671,7 @@ function renderWeekGrid() {
       <div class="day-dot-row">
         ${hasS ? '<div class="day-dot dot-s"></div>' : '<div style="width:4px;height:4px"></div>'}
         ${hasR ? '<div class="day-dot dot-r"></div>' : '<div style="width:4px;height:4px"></div>'}
+        ${hasStepWorkout ? '<div class="day-dot" style="background:var(--warning);opacity:0.85" title="Step workout"></div>' : hasSteps ? '<div class="day-dot" style="background:var(--text3);opacity:0.4"></div>' : '<div style="width:4px;height:4px"></div>'}
       </div>`;
     grid.appendChild(cell);
   }
@@ -2140,6 +2168,19 @@ function calcSequenceAdjustedDebts() {
   const hasRun   = recentTypes.includes('Run');
   const isCNSTriad = hasLower && hasUpper && hasRun && lastDays <= 2;
 
+  // Step workout signal: if a step workout was logged in the last 1–2 days,
+  // it partially satisfies aerobic demand — suppress run debt slightly.
+  // Only meaningful when it was a *pure* step day (no run or strength also logged).
+  const recentStepWorkouts = (data.steps || [])
+    .filter(s => {
+      const daysAgo = Math.floor((new Date(todayStr) - new Date(s.date + 'T12:00:00')) / 86400000);
+      return daysAgo <= 2 && isStepWorkout(s.steps);
+    });
+  const isPureStepWorkoutDay = recentStepWorkouts.some(s => {
+    const d = s.date;
+    return !data.workouts.some(w => w.date === d) && !data.runs.some(r => r.date === d);
+  });
+
   return debts.map(d => {
     let adjustedScore = d.score;
     let sequenceNote  = null;
@@ -2154,19 +2195,22 @@ function calcSequenceAdjustedDebts() {
       const nextRunType = getNextRunType();
       if (isLegDayRecent && !isThirdDayPattern) {
         if (nextRunType === 'tempo') {
-          // Tempo after leg day: heavy penalty — high impact, same muscles
           adjustedScore = Math.max(0, d.score - 1.5);
           sequenceNote  = `A tempo run after ${lastActivity.type} (${lastDays === 0 ? 'today' : lastDays + 'd ago'}) stresses the same muscles before they've recovered. Your next run should be a tempo — but wait one more day, or swap to your easy run today instead.`;
         } else {
-          // Easy run after leg day: slight penalty — impact still present but manageable
           adjustedScore = Math.max(0, d.score - 0.6);
           sequenceNote  = `Your legs are still recovering from ${lastActivity.type} (${lastDays === 0 ? 'today' : lastDays + 'd ago'}). An easy 5K at HR <155 is fine — low intensity won't interfere with recovery. Avoid pushing the pace.`;
         }
       } else if (isThirdDayPattern) {
-        // Lower → Upper → ?: perfect day for cardio, and promote the right type
         adjustedScore = d.score + 1.8;
         const runTypeLabel = nextRunType === 'tempo' ? 'tempo run — your legs are fresh' : 'easy 5K — good active recovery day';
         sequenceNote  = `Lower body then upper body done — ideal day for your ${runTypeLabel}. Your muscles need a break from lifting and aerobic work supports recovery.`;
+      } else if (isPureStepWorkoutDay && !isThirdDayPattern) {
+        // A high-step day on a rest day partially counts as aerobic work — reduce urgency slightly
+        adjustedScore = Math.max(0, d.score - 0.4);
+        const sw = recentStepWorkouts[0];
+        const daysAgo = Math.floor((new Date(todayStr) - new Date(sw.date + 'T12:00:00')) / 86400000);
+        sequenceNote  = `You logged ${sw.steps.toLocaleString()} steps ${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : '2 days ago'} — a step workout that contributes meaningful aerobic load. A run is still beneficial, but your cardiovascular system isn't on empty.`;
       }
     } else {
       // For strength sessions: if third-day cardio pattern applies, slightly
@@ -2924,15 +2968,29 @@ function saveSteps() {
   data.steps.push({ date, steps });
   saveData(data);
   closeModal('stepsModal');
-  showToast(`👟 ${steps.toLocaleString()} steps logged!`);
+
+  // Detect step workout AFTER saving (so baseline includes today)
+  if (isStepWorkout(steps)) {
+    showToast(`🏅 ${steps.toLocaleString()} steps — Step Workout logged!`);
+  } else {
+    const baseline = getAdaptiveStepBaseline();
+    if (steps >= baseline) {
+      showToast(`✓ ${steps.toLocaleString()} steps — baseline hit!`);
+    } else {
+      showToast(`👟 ${steps.toLocaleString()} steps logged`);
+    }
+  }
   renderStepsCard();
 }
 
 // ═══ MODALS ═══
 function openLogModal() { document.getElementById('logModal').classList.add('open'); }
 function openStepsModal() {
+  const baseline = getAdaptiveStepBaseline();
+  const workoutThreshold = getStepWorkoutThreshold();
   document.getElementById('stepsDate').value = today();
   document.getElementById('stepsInput').value = '';
+  document.getElementById('stepsModalSub').textContent = `Baseline: ${baseline.toLocaleString()} · Step workout: ${workoutThreshold.toLocaleString()}+`;
   document.getElementById('stepsModal').classList.add('open');
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -3652,10 +3710,11 @@ function renderHistory() {
         ${editBtn}
       </div>`;
     } else {
+      const sw = isStepWorkout(item.steps);
       return `<div class="history-item">
-        <div class="history-icon s" style="background:rgba(122,106,82,0.12)">👟</div>
+        <div class="history-icon s" style="background:${sw ? 'rgba(184,92,56,0.15)' : 'rgba(122,106,82,0.12)'}">👟</div>
         <div style="flex:1">
-          <div class="history-name">${item.steps.toLocaleString()} steps</div>
+          <div class="history-name">${item.steps.toLocaleString()} steps${sw ? ' <span style="font-size:10px;color:var(--accent);font-weight:600">★ STEP WORKOUT</span>' : ''}</div>
           <div class="history-date">${formatDate(item.date)}</div>
         </div>
         ${editBtn}
@@ -3664,36 +3723,178 @@ function renderHistory() {
   }).join('');
 }
 
+// ═══════════════════════════════════════════════════
+// STEP INTELLIGENCE ENGINE
+// ═══════════════════════════════════════════════════
+
+// Scientific baseline: WHO recommends 7,000–10,000 steps/day for health.
+// We use a rolling 14-day personal average as the adaptive baseline,
+// anchored to a floor of 7,000 (minimum health threshold) and a ceiling of 12,000.
+// On first use (<3 days of data) we fall back to 8,000 (research midpoint).
+const STEPS_FLOOR = 7000;
+const STEPS_CEILING = 12000;
+const STEPS_DEFAULT = 8000;
+
+// A "step workout" fires when steps exceed the baseline by ≥50%.
+// Scientific rationale: 150% of your normal activity represents a meaningful
+// cardiovascular load — equivalent in energy expenditure to ~30–45 min of moderate exercise.
+const STEP_WORKOUT_MULTIPLIER = 1.5;
+
+// Minimum absolute threshold to prevent false positives on low-baseline users
+const STEP_WORKOUT_MIN = 12000;
+
+function getAdaptiveStepBaseline() {
+  const sorted = data.steps.slice().sort((a,b) => b.date.localeCompare(a.date));
+  if (sorted.length < 3) return STEPS_DEFAULT;
+  const window14 = sorted.slice(0, 14);
+  const avg = Math.round(window14.reduce((s,d) => s + d.steps, 0) / window14.length);
+  return Math.min(STEPS_CEILING, Math.max(STEPS_FLOOR, avg));
+}
+
+function getStepWorkoutThreshold() {
+  const baseline = getAdaptiveStepBaseline();
+  return Math.max(STEP_WORKOUT_MIN, Math.round(baseline * STEP_WORKOUT_MULTIPLIER));
+}
+
+function isStepWorkout(steps) {
+  return steps >= getStepWorkoutThreshold();
+}
+
+function getStepStreak() {
+  const baseline = getAdaptiveStepBaseline();
+  const sorted = data.steps.slice().sort((a,b) => b.date.localeCompare(a.date));
+  let streak = 0;
+  let cursor = new Date(today() + 'T12:00:00');
+  for (const s of sorted) {
+    const d = new Date(s.date + 'T12:00:00');
+    const diff = Math.round((cursor - d) / 86400000);
+    if (diff > 1) break;
+    if (s.steps >= baseline) {
+      streak++;
+      cursor = d;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+function getWeeklyStepSummary() {
+  const now = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().slice(0,10);
+    const entry = data.steps.find(s => s.date === ds);
+    days.push({ date: ds, steps: entry?.steps || 0 });
+  }
+  return days;
+}
+
 // ── Steps Card (Today) ──
 function renderStepsCard() {
   const card = document.getElementById('stepsCard');
   if (!card) return;
 
   const todaySteps = data.steps.find(s => s.date === today());
-  const recent = data.steps.slice().sort((a,b) => b.date.localeCompare(a.date)).slice(0, 7);
-  const avg7 = recent.length ? Math.round(recent.reduce((s,d) => s + d.steps, 0) / recent.length) : 0;
-  const goal = 8000;
+  const baseline = getAdaptiveStepBaseline();
+  const workoutThreshold = getStepWorkoutThreshold();
   const val = todaySteps?.steps || 0;
-  const pct = Math.min(100, Math.round((val / goal) * 100));
-  const color = val >= goal ? 'var(--strength)' : val >= 6000 ? 'var(--warning)' : 'var(--danger)';
-  const msg = val >= goal ? 'Goal reached! 🎉' : val >= 6000 ? `${(goal - val).toLocaleString()} more to hit 8k` : val > 0 ? `${(goal - val).toLocaleString()} to go` : 'Not logged yet — tap below';
+  const pct = Math.min(100, Math.round((val / baseline) * 100));
+  const workoutPct = Math.min(100, Math.round((val / workoutThreshold) * 100));
+  const streak = getStepStreak();
+
+  // Color logic: below baseline = warn, at baseline = good, at workout threshold = celebrate
+  const isWorkout = isStepWorkout(val);
+  const isAtBaseline = val >= baseline;
+  const color = isWorkout ? 'var(--accent)' : isAtBaseline ? 'var(--strength)' : val >= baseline * 0.75 ? 'var(--warning)' : 'var(--danger)';
+
+  // Determine how many days of data we have for baseline confidence message
+  const dataCount = data.steps.length;
+  const baselineNote = dataCount < 3
+    ? `Using 8,000 default — your baseline adapts after 3+ days of data`
+    : `Your personal baseline (${baseline.toLocaleString()} · ${dataCount}-day avg)`;
+
+  // Status message
+  let msg, workoutBadge = '';
+  if (isWorkout) {
+    msg = `🏅 Step workout! ${val.toLocaleString()} steps — ${(val - workoutThreshold).toLocaleString()} above your active threshold`;
+    workoutBadge = `<div style="display:inline-block;background:rgba(184,92,56,0.12);border:1px solid rgba(184,92,56,0.35);border-radius:12px;padding:3px 10px;font-size:10px;font-family:'Karla',sans-serif;color:var(--accent);font-weight:600;letter-spacing:0.5px;margin-bottom:8px">STEP WORKOUT ✓</div>`;
+  } else if (isAtBaseline) {
+    msg = `Baseline hit ✓ — ${(workoutThreshold - val).toLocaleString()} more for a step workout`;
+  } else if (val > 0) {
+    msg = `${(baseline - val).toLocaleString()} to hit your baseline · ${(workoutThreshold - val).toLocaleString()} for a step workout`;
+  } else {
+    msg = 'Not logged yet — tap below';
+  }
+
+  // Workout-day vs rest-day context
+  const todayHasWorkout = data.workouts.some(w => w.date === today());
+  const todayHasRun = data.runs.some(r => r.date === today());
+  const isWorkoutDay = todayHasWorkout || todayHasRun;
+  let contextNote = '';
+  if (val > 0) {
+    if (isWorkoutDay && isWorkout) {
+      contextNote = `<div style="font-size:11px;color:var(--accent2);font-family:'Karla',sans-serif;padding:8px 10px;background:rgba(122,106,82,0.07);border-radius:8px;border:1px solid rgba(122,106,82,0.2);margin-bottom:12px">🧠 High steps <em>on a training day</em> — impressive total load. Make sure you're eating and sleeping enough to recover.</div>`;
+    } else if (isWorkoutDay && !isWorkout) {
+      contextNote = `<div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;padding:8px 10px;background:rgba(44,36,32,0.04);border-radius:8px;border:1px solid var(--border);margin-bottom:12px">You trained today — steps add to your overall load. No need to push for a step workout on top of a training session.</div>`;
+    } else if (!isWorkoutDay && isWorkout) {
+      contextNote = `<div style="font-size:11px;color:var(--strength);font-family:'Karla',sans-serif;padding:8px 10px;background:rgba(184,92,56,0.06);border-radius:8px;border:1px solid rgba(184,92,56,0.2);margin-bottom:12px">🏅 Step workout on a rest day — this contributes real aerobic load and slightly reduces your run urgency.</div>`;
+    } else if (!isWorkoutDay && !isWorkout && val >= baseline * 0.75) {
+      contextNote = `<div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;padding:8px 10px;background:rgba(44,36,32,0.04);border-radius:8px;border:1px solid var(--border);margin-bottom:12px">Rest day — active recovery. Keep moving, you're close to your baseline.</div>`;
+    }
+  }
+  const weekDays = getWeeklyStepSummary();
+  const maxWeekSteps = Math.max(...weekDays.map(d => d.steps), baseline);
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const weekBars = weekDays.map(d => {
+    const isToday = d.date === today();
+    const barPct = maxWeekSteps > 0 ? Math.min(100, Math.round((d.steps / maxWeekSteps) * 100)) : 0;
+    const barColor = isStepWorkout(d.steps) ? 'var(--accent)' : d.steps >= baseline ? 'var(--strength)' : d.steps > 0 ? 'var(--warning)' : 'var(--surface)';
+    const dayName = dayNames[new Date(d.date + 'T12:00:00').getDay()];
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="font-size:8px;color:${isToday ? 'var(--accent)' : 'var(--text3)'};font-family:'Karla',sans-serif;font-weight:${isToday?'700':'400'}">${dayName}</div>
+      <div style="width:100%;height:40px;display:flex;align-items:flex-end">
+        <div style="width:100%;height:${barPct}%;background:${barColor};border-radius:2px;min-height:${d.steps>0?'2px':'0'};opacity:${isToday?'1':'0.7'}"></div>
+      </div>
+      <div style="font-size:8px;color:var(--text3);font-family:'Karla',sans-serif">${d.steps >= 1000 ? `${(d.steps/1000).toFixed(1)}k` : d.steps > 0 ? d.steps : '—'}</div>
+    </div>`;
+  }).join('');
+
+  // Streak display
+  const streakHtml = streak >= 2 ? `<div style="font-size:10px;color:var(--accent);font-family:'Karla',sans-serif;font-weight:600">🔥 ${streak}-day step streak</div>` : '';
 
   card.innerHTML = `
     <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;margin-bottom:10px">
+      ${workoutBadge}
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px">
         <div>
           <div style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:600;color:${color};line-height:1">${val > 0 ? val.toLocaleString() : '—'}</div>
-          <div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;margin-top:2px">steps today · goal 8,000</div>
+          <div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;margin-top:2px">steps today</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;color:var(--text2);font-family:'Karla',sans-serif">${avg7 > 0 ? avg7.toLocaleString() : '—'}</div>
-          <div style="font-size:10px;color:var(--text3);font-family:'Karla',sans-serif">7-day avg</div>
+          ${streakHtml}
+          <div style="font-size:12px;color:var(--text2);font-family:'Karla',sans-serif;margin-top:2px">${baseline.toLocaleString()} baseline</div>
+          <div style="font-size:10px;color:var(--text3);font-family:'Karla',sans-serif">${workoutThreshold.toLocaleString()} = workout</div>
         </div>
       </div>
-      <div style="background:var(--surface);border-radius:4px;height:8px;overflow:hidden">
+
+      <div style="background:var(--surface);border-radius:4px;height:6px;overflow:hidden;margin-bottom:3px">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 1s cubic-bezier(0.34,1.56,0.64,1)"></div>
       </div>
-      <div style="font-size:11px;color:var(--text2);font-family:'Karla',sans-serif;margin-top:8px">${msg}</div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);font-family:'Karla',sans-serif;margin-bottom:10px">
+        <span>0</span><span>Baseline ${(baseline/1000).toFixed(0)}k</span><span>Workout ${(workoutThreshold/1000).toFixed(0)}k</span>
+      </div>
+
+      <div style="font-size:11px;color:var(--text2);font-family:'Karla',sans-serif;margin-bottom:14px">${msg}</div>
+
+      ${contextNote}
+
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600;margin-bottom:8px">This Week</div>
+      <div style="display:flex;gap:4px;align-items:flex-end">${weekBars}</div>
+
+      <div style="font-size:10px;color:var(--text3);font-family:'Karla',sans-serif;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">📐 ${baselineNote}</div>
     </div>`;
 }
 
@@ -3705,12 +3906,14 @@ function drawStepsChart() {
   const sorted = data.steps.slice().sort((a,b) => a.date.localeCompare(b.date));
   if (!sorted.length) return;
 
+  const baseline = getAdaptiveStepBaseline();
+  const workoutThreshold = getStepWorkoutThreshold();
+
   const labels = sorted.map(s => {
     const d = new Date(s.date + 'T12:00:00');
     return `${d.getMonth()+1}/${d.getDate()}`;
   });
   const vals = sorted.map(s => s.steps);
-  const goal = 8000;
 
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
@@ -3727,7 +3930,7 @@ function drawStepsChart() {
 
   ctx.clearRect(0, 0, W, H);
 
-  const maxVal = Math.max(...vals, goal) * 1.1;
+  const maxVal = Math.max(...vals, workoutThreshold) * 1.1;
   const toX = i => PAD.left + (i / (vals.length - 1)) * cW;
   const toY = v => PAD.top + (1 - v / maxVal) * cH;
 
@@ -3739,29 +3942,53 @@ function drawStepsChart() {
     ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
   });
 
-  // Goal line
-  const gy = toY(goal);
+  // Baseline line (adaptive)
+  const by = toY(baseline);
   ctx.setLineDash([5, 4]);
-  ctx.strokeStyle = 'rgba(184,92,56,0.35)';
+  ctx.strokeStyle = 'rgba(122,106,82,0.45)';
   ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(PAD.left, gy); ctx.lineTo(W - PAD.right, gy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(PAD.left, by); ctx.lineTo(W - PAD.right, by); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(184,92,56,0.5)';
+  ctx.fillStyle = 'rgba(122,106,82,0.6)';
   ctx.font = '9px Karla, sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText('8k goal', W - PAD.right - 2, gy - 3);
+  ctx.fillText(`baseline ${(baseline/1000).toFixed(0)}k`, W - PAD.right - 2, by - 3);
 
-  // Bars
+  // Workout threshold line
+  const wy = toY(workoutThreshold);
+  ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = 'rgba(184,92,56,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(PAD.left, wy); ctx.lineTo(W - PAD.right, wy); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(184,92,56,0.6)';
+  ctx.font = '9px Karla, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(`workout ${(workoutThreshold/1000).toFixed(0)}k`, W - PAD.right - 2, wy - 3);
+
+  // Bars — color-coded: step workout = accent, at baseline = strength, below = muted
   const barW = Math.max(2, (cW / vals.length) * 0.65);
   vals.forEach((v, i) => {
     const x = toX(i) - barW / 2;
     const y = toY(v);
     const h = H - PAD.bottom - y;
-    const isOver = v >= goal;
-    ctx.fillStyle = isOver ? 'rgba(184,92,56,0.75)' : 'rgba(122,106,82,0.5)';
+    const barColor = v >= workoutThreshold
+      ? 'rgba(184,92,56,0.85)'
+      : v >= baseline
+        ? 'rgba(122,106,82,0.65)'
+        : 'rgba(122,106,82,0.3)';
+    ctx.fillStyle = barColor;
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(x, y, barW, h, 2) : ctx.rect(x, y, barW, h);
     ctx.fill();
+
+    // Star on step workout days
+    if (v >= workoutThreshold) {
+      ctx.fillStyle = 'rgba(184,92,56,0.8)';
+      ctx.font = '8px Karla, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('★', toX(i), y - 3);
+    }
   });
 
   // X labels — show every ~5th
@@ -3784,10 +4011,11 @@ function drawStepsChart() {
     }
   });
 
-  // Update stats
+  // Update stats — use adaptive baseline for "days over"
   const avg = Math.round(vals.reduce((a,b) => a+b, 0) / vals.length);
   const best = Math.max(...vals);
-  const daysOver = vals.filter(v => v >= goal).length;
+  const daysOver = vals.filter(v => v >= baseline).length;
+  const stepWorkoutDays = vals.filter(v => v >= workoutThreshold).length;
   const firstHalf = vals.slice(0, Math.floor(vals.length/2));
   const secondHalf = vals.slice(Math.floor(vals.length/2));
   const avgFirst = firstHalf.reduce((a,b) => a+b, 0) / firstHalf.length;
@@ -3797,7 +4025,8 @@ function drawStepsChart() {
   document.getElementById('statAvgSteps').textContent = avg >= 1000 ? `${(avg/1000).toFixed(1)}k` : avg;
   document.getElementById('statBestSteps').textContent = best >= 1000 ? `${(best/1000).toFixed(1)}k` : best;
   document.getElementById('statDaysOver').textContent = `${daysOver}/${vals.length}`;
-  document.getElementById('statStepsTrend').textContent = trend;
+  const stepWkEl = document.getElementById('statStepWorkouts');
+  if (stepWkEl) stepWkEl.textContent = stepWorkoutDays;
 }
 let currentScenario = 'consistent';
 
@@ -3905,6 +4134,120 @@ function renderRunRecommendation() {
     </div>`;
 }
 
+// ── Week-over-Week Step Comparison ──
+function renderStepWoW() {
+  const card = document.getElementById('stepWoWCard');
+  if (!card) return;
+
+  const baseline = getAdaptiveStepBaseline();
+  const workoutThreshold = getStepWorkoutThreshold();
+
+  // Build this week (Mon–today) and last week (same Mon–Sun)
+  const now = new Date();
+  const dow = now.getDay();
+  const startOfThisWeek = new Date(now);
+  startOfThisWeek.setDate(now.getDate() - ((dow + 6) % 7)); // Mon
+
+  function weekDates(startMonday) {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(startMonday);
+      d.setDate(startMonday.getDate() + i);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    });
+  }
+
+  const startOfLastWeek = new Date(startOfThisWeek);
+  startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+
+  const thisWeekDates = weekDates(startOfThisWeek);
+  const lastWeekDates = weekDates(startOfLastWeek);
+
+  const thisWeekData = thisWeekDates.map(ds => data.steps.find(s => s.date === ds)?.steps || null);
+  const lastWeekData = lastWeekDates.map(ds => data.steps.find(s => s.date === ds)?.steps || null);
+
+  const thisWeekLogged = thisWeekData.filter(v => v !== null);
+  const lastWeekLogged = lastWeekData.filter(v => v !== null);
+
+  if (lastWeekLogged.length === 0) {
+    card.innerHTML = `<div style="font-size:12px;color:var(--text3);font-family:'Karla',sans-serif">Log steps for at least a week to see your week-over-week comparison.</div>`;
+    return;
+  }
+
+  const thisAvg = thisWeekLogged.length ? Math.round(thisWeekLogged.reduce((a,b) => a+b,0) / thisWeekLogged.length) : null;
+  const lastAvg = Math.round(lastWeekLogged.reduce((a,b) => a+b,0) / lastWeekLogged.length);
+  const thisTotal = thisWeekLogged.reduce((a,b) => a+b,0);
+  const lastTotal = lastWeekLogged.reduce((a,b) => a+b,0);
+  const thisStepWorkouts = thisWeekData.filter(v => v !== null && isStepWorkout(v)).length;
+  const lastStepWorkouts = lastWeekData.filter(v => v !== null && isStepWorkout(v)).length;
+  const thisDaysAtBaseline = thisWeekData.filter(v => v !== null && v >= baseline).length;
+  const lastDaysAtBaseline = lastWeekData.filter(v => v !== null && v >= baseline).length;
+
+  // Delta
+  const avgDelta = thisAvg !== null ? thisAvg - lastAvg : null;
+  const deltaColor = avgDelta === null ? 'var(--text3)' : avgDelta > 0 ? 'var(--strength)' : avgDelta < 0 ? 'var(--danger)' : 'var(--text2)';
+  const deltaLabel = avgDelta === null ? '—' : `${avgDelta > 0 ? '+' : ''}${avgDelta.toLocaleString()}`;
+
+  // Trend narrative
+  let narrative = '';
+  if (thisAvg !== null && avgDelta > 500) {
+    narrative = `Your daily average is up this week. You're moving more.`;
+  } else if (thisAvg !== null && avgDelta < -500) {
+    narrative = `Your daily average is down this week — busy stretch or intentional rest?`;
+  } else if (thisAvg !== null) {
+    narrative = `Consistent week — your daily average is about the same as last week.`;
+  } else {
+    narrative = `You have ${thisWeekLogged.length} logged day${thisWeekLogged.length !== 1 ? 's' : ''} this week so far.`;
+  }
+
+  const dayLabels = ['M','T','W','T','F','S','S'];
+  const maxSteps = Math.max(...[...thisWeekData, ...lastWeekData].filter(Boolean), baseline) * 1.1;
+
+  const renderMiniBar = (steps, isThisWeek) => {
+    if (steps === null) return `<div style="flex:1;height:32px;background:var(--surface2);border-radius:2px;opacity:0.3"></div>`;
+    const h = Math.max(4, Math.round((steps / maxSteps) * 32));
+    const col = isStepWorkout(steps)
+      ? (isThisWeek ? 'var(--accent)' : 'rgba(184,92,56,0.45)')
+      : steps >= baseline
+        ? (isThisWeek ? 'var(--strength)' : 'rgba(122,106,82,0.45)')
+        : (isThisWeek ? 'var(--warning)' : 'rgba(196,146,58,0.3)');
+    return `<div style="flex:1;height:32px;display:flex;align-items:flex-end"><div style="width:100%;height:${h}px;background:${col};border-radius:2px"></div></div>`;
+  };
+
+  card.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div style="padding:10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border2)">
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-family:'Karla',sans-serif;margin-bottom:4px">This Week</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--text)">${thisAvg !== null ? thisAvg.toLocaleString() : '—'} <span style="font-size:12px;color:var(--text3)">avg/day</span></div>
+        <div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;margin-top:2px">${thisStepWorkouts > 0 ? `★ ${thisStepWorkouts} step workout${thisStepWorkouts>1?'s':''}` : `${thisDaysAtBaseline} days at baseline`}</div>
+      </div>
+      <div style="padding:10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border2)">
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-family:'Karla',sans-serif;margin-bottom:4px">Last Week</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--text2)">${lastAvg.toLocaleString()} <span style="font-size:12px;color:var(--text3)">avg/day</span></div>
+        <div style="font-size:11px;color:var(--text3);font-family:'Karla',sans-serif;margin-top:2px">${lastStepWorkouts > 0 ? `★ ${lastStepWorkouts} step workout${lastStepWorkouts>1?'s':''}` : `${lastDaysAtBaseline} days at baseline`}</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:${deltaColor}">${deltaLabel}</div>
+      <div style="font-size:11px;color:var(--text2);font-family:'Karla',sans-serif;line-height:1.5">${narrative}</div>
+    </div>
+
+    <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-family:'Karla',sans-serif;font-weight:600;margin-bottom:6px">Day by Day (this / last week)</div>
+    <div style="display:flex;gap:4px;margin-bottom:3px">
+      ${thisWeekData.map((v, i) => renderMiniBar(v, true)).join('')}
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:4px">
+      ${lastWeekData.map((v, i) => renderMiniBar(v, false)).join('')}
+    </div>
+    <div style="display:flex;gap:4px">
+      ${dayLabels.map(l => `<div style="flex:1;text-align:center;font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">${l}</div>`).join('')}
+    </div>
+
+    <div style="font-size:10px;color:var(--text3);font-family:'Karla',sans-serif;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+      ■ Terracotta = step workout  ■ Green = at baseline  ■ Amber = below baseline  ·  Solid = this week, muted = last week
+    </div>`;
+}
+
 function drawCharts() {
   const stats = getWeekStats();
   const latestPace = getLatestPace();
@@ -3946,6 +4289,20 @@ function drawCharts() {
   }
 
   drawStepsChart();
+
+  // Populate adaptive baseline explainer
+  const baselineEl = document.getElementById('baselineExplainer');
+  if (baselineEl) {
+    const bl = getAdaptiveStepBaseline();
+    const wt = getStepWorkoutThreshold();
+    const dc = data.steps.length;
+    const streak = getStepStreak();
+    baselineEl.innerHTML = dc < 3
+      ? `You have ${dc} day${dc !== 1 ? 's' : ''} of step data. Log at least 3 days and your baseline will adapt to your actual behavior (anchored between 7,000 and 12,000 steps). Until then, the default is 8,000 — the WHO-recommended minimum for measurable cardiovascular benefit.`
+      : `Your personal baseline is <strong>${bl.toLocaleString()} steps</strong>, calculated as the rolling average of your last ${Math.min(dc, 14)} days — anchored to a health floor of 7,000 and a ceiling of 12,000. A <strong>step workout</strong> triggers at <strong>${wt.toLocaleString()} steps</strong> (150% of your baseline), reflecting the metabolic load of sustained high-volume walking. ${streak >= 2 ? `<br><br>🔥 You're on a <strong>${streak}-day streak</strong> of hitting your baseline.` : ''}`;
+  }
+
+  renderStepWoW();
 
   // ── Projection chart (scenario-based, from current pace) ──
   const scenarios = {
