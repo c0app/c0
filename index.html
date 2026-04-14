@@ -865,11 +865,11 @@
   <!-- Week grid -->
   <div class="section-label">This Week</div>
   <div class="week-grid" id="weekGrid"></div>
-  <div style="display:flex;gap:12px;padding:0 2px;margin-bottom:4px;margin-top:-4px">
+  <div style="display:flex;gap:12px;padding:0 2px;margin-bottom:4px;margin-top:-4px;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--strength)"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Strength</span></div>
     <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--run)"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Run</span></div>
     <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--warning)"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Step workout</span></div>
-    <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--text3);opacity:0.4"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Steps</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent2)"></div><span style="font-size:9px;color:var(--text3);font-family:'Karla',sans-serif">Bike/Walk</span></div>
   </div>
 
   <!-- Streak -->
@@ -881,7 +881,8 @@
     </div>
   </div>
 
-  <!-- Training Intelligence -->
+  <!-- Weekly Load Score -->
+  <div id="weeklyLoadCard" style="margin-bottom:10px"></div>
   <div class="section-label">What Your Body Needs</div>
   <div id="trainingIntelCard"></div>
 
@@ -915,6 +916,7 @@
   <div class="type-selector">
     <div class="type-btn active-s" id="typeBtnS" onclick="selectLogType('strength')">💪 Strength</div>
     <div class="type-btn" id="typeBtnR" onclick="selectLogType('run')">🏃 Run</div>
+    <div class="type-btn" id="typeBtnC" onclick="selectLogType('cardio')">🚴 Cardio</div>
   </div>
 
   <!-- Strength form -->
@@ -1008,6 +1010,17 @@
       </div>
     </div>
 
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Avg HR (optional)</label>
+        <input type="number" class="form-input" id="runAvgHR" placeholder="148" min="80" max="220">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zone (auto)</label>
+        <div class="form-input" id="runHRZoneDisplay" style="color:var(--text3)">—</div>
+      </div>
+    </div>
+
     <div class="form-group">
       <label class="form-label">Notes (optional)</label>
       <input type="text" class="form-input" id="runNotes" placeholder="Route, how it felt...">
@@ -1016,7 +1029,87 @@
     <button class="log-btn run-btn" onclick="saveRun()">Save Run</button>
   </div>
 
-</div>
+  <!-- Cardio form (bike / walk) -->
+  <div id="cardioForm" style="display:none">
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="cardioDate">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Activity</label>
+      <div style="display:flex;gap:8px">
+        <button id="cardioBikeBtn" onclick="selectCardioKind('bike')"
+          style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.10);color:var(--accent);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s">
+          🚴 Bike Ride<br><span style="font-size:10px;font-weight:400;opacity:0.8">0.7× run equivalent</span>
+        </button>
+        <button id="cardioWalkBtn" onclick="selectCardioKind('walk')"
+          style="flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s">
+          🚶 Long Walk<br><span style="font-size:10px;opacity:0.8">0.4× run equivalent</span>
+        </button>
+      </div>
+      <input type="hidden" id="cardioKindVal" value="bike">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Distance (km)</label>
+        <input type="number" class="form-input" id="cardioDistance" placeholder="15.0" step="0.1" min="0.5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time (min)</label>
+        <input type="number" class="form-input" id="cardioTime" placeholder="60" min="5">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Cardiovascular Effort (auto)</label>
+      <div class="form-input" id="cardioEffortDisplay" style="color:var(--text3)">— fill in distance + time</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">RPE (effort 1–10)</label>
+      <input type="range" id="cardioRPE" min="1" max="10" value="6" style="width:100%;accent-color:var(--accent)">
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--text3)">
+        <span>Easy</span><span id="cardioRpeVal">6</span><span>Max</span>
+      </div>
+    </div>
+
+    <div class="form-group" id="cardioTerrainGroup" style="display:none">
+      <label class="form-label">Terrain</label>
+      <div style="display:flex;gap:8px">
+        <button id="terrainFlatBtn" onclick="selectTerrain('flat')"
+          style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--accent2);background:rgba(122,106,82,0.10);color:var(--accent2);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s">
+          🏙 Flat
+        </button>
+        <button id="terrainHillyBtn" onclick="selectTerrain('hilly')"
+          style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s">
+          ⛰ Hilly (+20%)
+        </button>
+      </div>
+      <input type="hidden" id="cardioTerrainVal" value="flat">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Avg HR (optional)</label>
+        <input type="number" class="form-input" id="cardioAvgHR" placeholder="140" min="80" max="220">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zone (auto)</label>
+        <div class="form-input" id="cardioHRZoneDisplay" style="color:var(--text3)">—</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <input type="text" class="form-input" id="cardioNotes" placeholder="Route, terrain, how it felt...">
+    </div>
+
+    <button class="log-btn" style="background:var(--accent2)" onclick="saveCardio()">Save Cardio Session</button>
+  </div>
+
+</div><!-- end page-log -->
 
 <!-- ═══════════════ PAGE: PROGRESS ═══════════════ -->
 <div class="page" id="page-progress">
@@ -1033,6 +1126,31 @@
     <div class="graph-title">Distance Per Run (km)</div>
     <div class="graph-sub">Dotted line = 5km target distance.</div>
     <canvas id="realDistChart" height="160"></canvas>
+  </div>
+
+  <div class="section-label">Weekly Cardio Load</div>
+  <div class="graph-container">
+    <div class="graph-title">Cardio Effort This Week (all modalities)</div>
+    <div class="graph-sub">Run = 1.0× · Bike = 0.7× · Walk = 0.4× run equivalent. Bars show daily effort units.</div>
+    <canvas id="cardioEffortChart" height="160"></canvas>
+  </div>
+  <div class="stat-grid" style="margin-bottom:10px">
+    <div class="stat-card">
+      <div class="stat-val blue" id="statWeekCardioEffort">—</div>
+      <div class="stat-label">Week Effort</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val blue" id="statWeekCardioSessions">—</div>
+      <div class="stat-label">Cardio Sessions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val blue" id="statTotalBikeKm">—</div>
+      <div class="stat-label">Total Bike km</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val blue" id="statTotalWalkKm">—</div>
+      <div class="stat-label">Total Walk km</div>
+    </div>
   </div>
 
   <div class="section-label">Daily Steps — Last 30 Days</div>
@@ -1148,8 +1266,17 @@
       The WHO identifies 7,000–10,000 steps/day as the range where cardiovascular, metabolic, and longevity benefits become measurable. c0 sets your personal baseline from your rolling 14-day average (floored at 7,000). A <strong>step workout</strong> is automatically recognized when you hit 150% of that baseline — the threshold where walking transitions from background activity into a meaningful aerobic stimulus, equivalent to ~30–45 min of moderate-intensity exercise. Your baseline adapts as your habits change.
     </div>
   </div>
+  <div class="science-card blue">
+    <div class="science-icon">🚴</div>
+    <div class="science-title">Cardio Equivalence: Bikes, Walks & Runs</div>
+    <div class="science-body">
+      Not all cardio is equal per minute. Running produces ~10 METs at moderate effort — the highest ground-reaction load per stride. Cycling produces ~7 METs (0.7× run equivalent) because the pedaling stroke distributes load across a larger arc and eliminates impact. Walking produces ~3.5 METs (0.4×). c0 normalizes all three into a single <strong>effort unit</strong>, so a hard 20km bike ride at RPE 8 earns ~3.4 units — comparable to two easy 5K runs. This credits cross-training toward your cardiovascular debt without overstating it.
+    </div>
+  </div>
 
-
+  <div class="science-card blue">
+    <div class="science-icon">🏃</div>
+    <div class="science-title">Running to 5K in 30 min</div>
     <div class="science-body">
       Current target: 6:00 min/km. Research shows 10% weekly mileage increases are safe. Two runs per week with varied intensity (one easy, one moderate) outperforms two hard runs for aerobic adaptation and injury prevention.
     </div>
@@ -1168,6 +1295,22 @@
     <div class="science-title">Cost of Skipping</div>
     <div class="science-body">
       Missing 2+ consecutive strength sessions begins reversing neural adaptations within 5–7 days. Aerobic fitness declines measurably after 10–14 days without running. Consistency beats intensity every time.
+    </div>
+  </div>
+
+  <div class="science-card green">
+    <div class="science-icon">❤️</div>
+    <div class="science-title">Heart Rate Zones & Training Quality</div>
+    <div class="science-body">
+      HR zones tell you <em>what system</em> you're training, not just how hard you're working. Zone 2 (60–70% max HR) builds your aerobic base — the fat-burning mitochondrial engine that underpins all endurance. Zone 4–5 (80–90%+) builds speed and VO2 max but is metabolically expensive. Most people train too hard on easy days and not hard enough on hard days. c0 uses your logged avg HR from Apple Watch or Oura to flag which zone you actually hit — so your easy run stays easy.
+    </div>
+  </div>
+
+  <div class="science-card red">
+    <div class="science-icon">😴</div>
+    <div class="science-title">When to Take a Full Rest Day</div>
+    <div class="science-body">
+      Adaptation doesn't happen during training — it happens in the 24–72 hours after. When you train 5+ days in a row or accumulate a load score above 7.5/10, you're not giving your body time to complete that adaptation cycle. Connective tissue recovers more slowly than muscle, and is the most common site of overuse injury. A strategic rest day is not a setback — it's where the gains actually get made.
     </div>
   </div>
 
@@ -1201,7 +1344,7 @@
   <div class="section-label">Your Data</div>
 
   <!-- Stats summary -->
-  <div class="stat-grid" style="margin-bottom:10px">
+  <div class="stat-grid" style="margin-bottom:10px;grid-template-columns:1fr 1fr 1fr">
     <div class="stat-card">
       <div class="stat-val green" id="dataStatWorkouts">0</div>
       <div class="stat-label">Workouts</div>
@@ -1209,6 +1352,10 @@
     <div class="stat-card">
       <div class="stat-val blue" id="dataStatRuns">0</div>
       <div class="stat-label">Runs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val green" id="dataStatCardio">0</div>
+      <div class="stat-label">Bike/Walk</div>
     </div>
     <div class="stat-card">
       <div class="stat-val green" id="dataStatSteps">0</div>
@@ -1260,6 +1407,7 @@
     <div class="type-selector">
       <div class="type-btn active-s" id="modalTypeBtnS" onclick="selectModalType('strength')">💪 Strength</div>
       <div class="type-btn" id="modalTypeBtnR" onclick="selectModalType('run')">🏃 Run</div>
+      <div class="type-btn" id="modalTypeBtnC" onclick="selectModalType('cardio')">🚴 Cardio</div>
     </div>
 
     <div id="quickStrengthForm">
@@ -1297,6 +1445,31 @@
         </div>
       </div>
       <button class="log-btn run-btn" onclick="saveQuickRun()">Done ✓</button>
+    </div>
+
+    <div id="quickCardioForm" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button id="quickCardioBikeBtn" onclick="selectQuickCardioKind('bike')"
+          style="flex:1;padding:8px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.10);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer">
+          🚴 Bike
+        </button>
+        <button id="quickCardioWalkBtn" onclick="selectQuickCardioKind('walk')"
+          style="flex:1;padding:8px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer">
+          🚶 Walk
+        </button>
+      </div>
+      <input type="hidden" id="quickCardioKind" value="bike">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Distance (km)</label>
+          <input type="number" class="form-input" id="quickCardioDistance" placeholder="15.0" step="0.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time (min)</label>
+          <input type="number" class="form-input" id="quickCardioTime" placeholder="60">
+        </div>
+      </div>
+      <button class="log-btn" style="background:var(--accent2)" onclick="saveQuickCardio()">Done ✓</button>
     </div>
 
     <button class="log-btn secondary" style="margin-top:8px" onclick="closeModal('logModal')">Cancel</button>
@@ -1431,6 +1604,88 @@
   </div>
 </div>
 
+<!-- ═══════════════ MODAL: EDIT CARDIO ═══════════════ -->
+<div class="modal-overlay" id="editCardioModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="editCardioTitle">Edit Session</div>
+    <div class="modal-sub">Update any field and save.</div>
+    <input type="hidden" id="editCardioIndex">
+    <input type="hidden" id="editCardioKindVal">
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="editCardioDate">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Activity</label>
+      <div style="display:flex;gap:8px">
+        <button id="editCardioBikeBtn" onclick="selectEditCardioKind('bike')"
+          style="flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.10);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s">
+          🚴 Bike Ride
+        </button>
+        <button id="editCardioWalkBtn" onclick="selectEditCardioKind('walk')"
+          style="flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s">
+          🚶 Long Walk
+        </button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Distance (km)</label>
+        <input type="number" class="form-input" id="editCardioDistance" step="0.1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time (min)</label>
+        <input type="number" class="form-input" id="editCardioTime">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Effort (auto)</label>
+      <div class="form-input" id="editCardioEffortDisplay" style="color:var(--text3)">—</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">RPE (effort 1–10)</label>
+      <input type="range" id="editCardioRPE" min="1" max="10" value="6" style="width:100%;accent-color:var(--accent2)">
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--text3)">
+        <span>Easy</span><span id="editCardioRpeVal">6</span><span>Max</span>
+      </div>
+    </div>
+    <div class="form-group" id="editCardioTerrainGroup" style="display:none">
+      <label class="form-label">Terrain</label>
+      <div style="display:flex;gap:8px">
+        <button id="editTerrainFlatBtn" onclick="selectEditTerrain('flat')"
+          style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--accent2);background:rgba(122,106,82,0.10);color:var(--accent2);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s">
+          🏙 Flat
+        </button>
+        <button id="editTerrainHillyBtn" onclick="selectEditTerrain('hilly')"
+          style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s">
+          ⛰ Hilly (+20%)
+        </button>
+      </div>
+      <input type="hidden" id="editCardioTerrainVal" value="flat">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Avg HR (optional)</label>
+        <input type="number" class="form-input" id="editCardioAvgHR" placeholder="140" min="80" max="220">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zone (auto)</label>
+        <div class="form-input" id="editCardioHRZoneDisplay" style="color:var(--text3)">—</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input type="text" class="form-input" id="editCardioNotes" placeholder="Route, terrain, how it felt...">
+    </div>
+    <button class="log-btn" style="background:var(--accent2)" onclick="saveEditCardio()">Save Changes</button>
+    <button class="log-btn secondary" style="margin-top:8px;background:rgba(158,58,42,0.08);border-color:var(--danger);color:var(--danger)" onclick="deleteCardio()">Delete Entry</button>
+    <button class="log-btn secondary" style="margin-top:8px" onclick="closeModal('editCardioModal')">Cancel</button>
+  </div>
+</div>
+
 <!-- ═══════════════ MODAL: POST-WORKOUT FEEDBACK ═══════════════ -->
 <div class="modal-overlay" id="feedbackModal">
   <div class="modal">
@@ -1500,7 +1755,7 @@ function signInWithGoogle() {
 function signOut() {
   auth.signOut().then(() => {
     currentUser = null;
-    data = { workouts: [], runs: [], steps: [] };
+    data = { workouts: [], runs: [], steps: [], cardio: [] };
     document.getElementById('loginScreen').style.display = 'flex';
   });
 }
@@ -1531,8 +1786,10 @@ async function loadDataFromCloud() {
 
 function loadData() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { workouts: [], runs: [], steps: [] };
-  } catch { return { workouts: [], runs: [], steps: [] }; }
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { workouts: [], runs: [], steps: [], cardio: [] };
+    if (!d.cardio) d.cardio = []; // migrate old data
+    return d;
+  } catch { return { workouts: [], runs: [], steps: [], cardio: [] }; }
 }
 
 let data = loadData();
@@ -1556,9 +1813,10 @@ auth.onAuthStateChanged(async (user) => {
     const cloudData = await loadDataFromCloud();
     if (cloudData) {
       data = cloudData;
+      if (!data.cardio) data.cardio = []; // migrate old data
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
     } else {
-      data = { workouts: [], runs: [], steps: [] };
+      data = { workouts: [], runs: [], steps: [], cardio: [] };
     }
 
     // Run init sequence after data is fully loaded
@@ -1654,6 +1912,8 @@ function renderWeekGrid() {
     const stepEntry = data.steps.find(s => s.date === ds);
     const hasStepWorkout = stepEntry && isStepWorkout(stepEntry.steps);
     const hasSteps = !!stepEntry;
+    const hasCardio = (data.cardio || []).some(c => c.date === ds);
+    const hasHardCardio = (data.cardio || []).some(c => c.date === ds && (c.effort || 0) >= 1.0);
 
     const cell = document.createElement('div');
     cell.className = 'day-cell' +
@@ -1672,6 +1932,7 @@ function renderWeekGrid() {
         ${hasS ? '<div class="day-dot dot-s"></div>' : '<div style="width:4px;height:4px"></div>'}
         ${hasR ? '<div class="day-dot dot-r"></div>' : '<div style="width:4px;height:4px"></div>'}
         ${hasStepWorkout ? '<div class="day-dot" style="background:var(--warning);opacity:0.85" title="Step workout"></div>' : hasSteps ? '<div class="day-dot" style="background:var(--text3);opacity:0.4"></div>' : '<div style="width:4px;height:4px"></div>'}
+        ${hasCardio ? `<div class="day-dot" style="background:var(--accent2);opacity:${hasHardCardio ? '1' : '0.5'}" title="${hasHardCardio ? 'High-effort cardio' : 'Cardio'}"></div>` : '<div style="width:4px;height:4px"></div>'}
       </div>`;
     grid.appendChild(cell);
   }
@@ -2073,11 +2334,12 @@ function calcAllDebts() {
 }
 
 // Returns the last N logged activities in chronological order (most recent last).
-// Each item: { kind: 'strength'|'run', type: 'Lower Body'|'Upper Body'|'Full Body'|'Run', date, runType? }
+// Each item: { kind: 'strength'|'run'|'cardio', type, date, runType?, effort?, cardioKind? }
 function getRecentActivitySequence(n = 3) {
   const strengthEntries = (data.workouts || []).map(w => ({ kind: 'strength', type: w.type, date: w.date }));
   const runEntries      = (data.runs    || []).map(r => ({ kind: 'run', type: 'Run', date: r.date, runType: r.runType || 'easy' }));
-  return [...strengthEntries, ...runEntries]
+  const cardioEntries   = (data.cardio  || []).map(c => ({ kind: 'cardio', type: 'Cardio', date: c.date, cardioKind: c.kind, effort: c.effort || 0 }));
+  return [...strengthEntries, ...runEntries, ...cardioEntries]
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-n);
 }
@@ -2181,6 +2443,21 @@ function calcSequenceAdjustedDebts() {
     return !data.workouts.some(w => w.date === d) && !data.runs.some(r => r.date === d);
   });
 
+  // Cardio signal: recent bike rides / long walks contribute cardiovascular load.
+  // A high-effort bike (≥1.0 unit) partially satisfies run debt (~40% credit).
+  // A very hard ride (≥2.0 units, RPE 7+) also taxes legs → suppress Lower Body strength.
+  const recentCardio = (data.cardio || []).filter(c => {
+    const daysAgo = Math.floor((new Date(todayStr) - new Date(c.date + 'T12:00:00')) / 86400000);
+    return daysAgo <= 2;
+  });
+  const recentBikeEffort = recentCardio
+    .filter(c => c.kind === 'bike')
+    .reduce((sum, c) => sum + (c.effort || 0), 0);
+  const recentWalkEffort = recentCardio
+    .filter(c => c.kind === 'walk')
+    .reduce((sum, c) => sum + (c.effort || 0), 0);
+  const hardRecentBike = recentCardio.some(c => c.kind === 'bike' && (c.effort || 0) >= 2.0 && (c.rpe || 0) >= 7);
+
   return debts.map(d => {
     let adjustedScore = d.score;
     let sequenceNote  = null;
@@ -2211,6 +2488,16 @@ function calcSequenceAdjustedDebts() {
         const sw = recentStepWorkouts[0];
         const daysAgo = Math.floor((new Date(todayStr) - new Date(sw.date + 'T12:00:00')) / 86400000);
         sequenceNote  = `You logged ${sw.steps.toLocaleString()} steps ${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : '2 days ago'} — a step workout that contributes meaningful aerobic load. A run is still beneficial, but your cardiovascular system isn't on empty.`;
+      } else if (recentBikeEffort >= 1.0 && !isThirdDayPattern) {
+        // A meaningful bike ride partially satisfies aerobic demand (~40% credit)
+        const credit = Math.min(0.8, recentBikeEffort * 0.4);
+        adjustedScore = Math.max(0, d.score - credit);
+        const topBike = recentCardio.filter(c => c.kind === 'bike').sort((a,b) => (b.effort||0)-(a.effort||0))[0];
+        const daysAgo = Math.floor((new Date(todayStr) - new Date(topBike.date + 'T12:00:00')) / 86400000);
+        sequenceNote  = `You rode ${topBike.distance}km ${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : '2 days ago'} (effort: ${topBike.effort} units — ${(topBike.effort * 0.7 / 1.0 * 100).toFixed(0)}% equivalent cardio load). A run is still beneficial, but your aerobic base isn't empty.`;
+      } else if (recentWalkEffort >= 0.5 && !isThirdDayPattern) {
+        // Long walk gives modest suppression
+        adjustedScore = Math.max(0, d.score - 0.2);
       }
     } else {
       // For strength sessions: if third-day cardio pattern applies, slightly
@@ -2220,6 +2507,10 @@ function calcSequenceAdjustedDebts() {
         adjustedScore = Math.max(0, d.score - 0.8);
       } else if (isThirdDayPattern) {
         adjustedScore = Math.max(0, d.score - 0.3);
+      } else if (hardRecentBike && (d.type === 'Lower Body' || d.type === 'Full Body')) {
+        // Hard bike ride taxes legs / glutes similarly to a lower body session
+        adjustedScore = Math.max(0, d.score - 0.5);
+        sequenceNote = `A hard bike ride in the last 2 days taxed your legs and glutes significantly. Lower body strength today risks overloading muscles that haven't fully recovered. Consider Upper Body or Mobility instead.`;
       }
     }
 
@@ -2491,6 +2782,244 @@ function renderRunRecommendation() {
     </div>`;
 }
 
+// ═══════════════════════════════════════════════════
+// HR ZONE ENGINE
+// Uses standard 5-zone model based on max HR.
+// Zones determined from % of max HR.
+// Default max HR = 220 - age. Since we don't store age,
+// we use 190 as a reasonable default for an active adult.
+// Users with Apple Watch / Oura HR data should be able to
+// override by entering their actual avg HR.
+// ═══════════════════════════════════════════════════
+
+const DEFAULT_MAX_HR = 190; // reasonable active adult default
+
+function hrToZone(avgHR, maxHR) {
+  maxHR = maxHR || DEFAULT_MAX_HR;
+  const pct = avgHR / maxHR;
+  if (pct < 0.60) return { zone: 1, label: 'Zone 1', desc: 'Recovery', color: 'var(--text3)' };
+  if (pct < 0.70) return { zone: 2, label: 'Zone 2', desc: 'Aerobic base', color: 'var(--run)' };
+  if (pct < 0.80) return { zone: 3, label: 'Zone 3', desc: 'Tempo', color: 'var(--warning)' };
+  if (pct < 0.90) return { zone: 4, label: 'Zone 4', desc: 'Threshold', color: 'var(--accent)' };
+  return { zone: 5, label: 'Zone 5', desc: 'Max effort', color: 'var(--danger)' };
+}
+
+function hrZoneDisplay(avgHR) {
+  if (!avgHR || isNaN(avgHR)) return null;
+  const z = hrToZone(avgHR);
+  return `${z.label} · ${z.desc} (${avgHR} bpm)`;
+}
+
+function updateRunHRZone() {
+  const hr = parseInt(document.getElementById('runAvgHR').value);
+  const el = document.getElementById('runHRZoneDisplay');
+  if (!hr || hr < 80) { el.textContent = '—'; el.style.color = 'var(--text3)'; return; }
+  const z = hrToZone(hr);
+  el.textContent = `${z.label} · ${z.desc}`;
+  el.style.color = z.color;
+}
+
+function updateCardioHRZone() {
+  const hr = parseInt(document.getElementById('cardioAvgHR')?.value);
+  const el = document.getElementById('cardioHRZoneDisplay');
+  if (!el) return;
+  if (!hr || hr < 80) { el.textContent = '—'; el.style.color = 'var(--text3)'; return; }
+  const z = hrToZone(hr);
+  el.textContent = `${z.label} · ${z.desc}`;
+  el.style.color = z.color;
+}
+
+function selectTerrain(terrain) {
+  document.getElementById('cardioTerrainVal').value = terrain;
+  const flatBtn = document.getElementById('terrainFlatBtn');
+  const hillyBtn = document.getElementById('terrainHillyBtn');
+  if (terrain === 'flat') {
+    flatBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--accent2);background:rgba(122,106,82,0.12);color:var(--accent2);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    hillyBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+  } else {
+    hillyBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--accent);background:rgba(184,92,56,0.10);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    flatBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+  }
+  updateCardioEffort(); // terrain affects effort score
+}
+
+// Show terrain selector only for walks
+function onCardioKindChange() {
+  const kind = document.getElementById('cardioKindVal').value;
+  const terrainGroup = document.getElementById('cardioTerrainGroup');
+  if (terrainGroup) terrainGroup.style.display = kind === 'walk' ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════
+// WEEKLY LOAD SCORE
+// Normalized 0–10 scale representing total training stress.
+// Components: strength volume (sets × weight), cardio effort
+// units (run + bike + walk), step workouts.
+// Calibrated so that a "perfect week" (3 strength + 2 runs +
+// some walking) ≈ 7–8 out of 10.
+// ═══════════════════════════════════════════════════
+
+function calcWeeklyLoadScore() {
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 6); // last 7 days including today
+  const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+  // Strength: 1 session = 1.5 base units, scaled by volume tier
+  const strengthSessions = data.workouts.filter(w => w.date >= weekStartStr && w.type !== 'Mobility');
+  const mobilityCount = data.workouts.filter(w => w.date >= weekStartStr && w.type === 'Mobility').length;
+  const strengthLoad = strengthSessions.reduce((sum, w) => {
+    const vol = w.volume || 0;
+    const volBonus = vol > 3000 ? 0.5 : vol > 1500 ? 0.25 : 0;
+    return sum + 1.5 + volBonus;
+  }, 0);
+
+  // Cardio: run effort units (1.0 per easy 5K) + bike/walk efforts
+  const runLoad = data.runs
+    .filter(r => r.date >= weekStartStr)
+    .reduce((sum, r) => sum + calcCardioEffort('run_equiv', r.distance, r.time, r.rpe || 6), 0);
+
+  const cardioLoad = (data.cardio || [])
+    .filter(c => c.date >= weekStartStr)
+    .reduce((sum, c) => sum + (c.effort || 0), 0);
+
+  // Steps: step workout days count as 0.3 units each
+  const baseline = getAdaptiveStepBaseline();
+  const stepLoad = data.steps
+    .filter(s => s.date >= weekStartStr && s.steps >= getStepWorkoutThreshold())
+    .length * 0.3;
+
+  // Mobility: 0.4 per session (recovery work)
+  const mobilityLoad = mobilityCount * 0.4;
+
+  const rawLoad = strengthLoad + runLoad + cardioLoad + stepLoad + mobilityLoad;
+
+  // Normalize: 7.0 raw ≈ 8/10 (a solid week)
+  const score = Math.min(10, parseFloat((rawLoad / 7.0 * 8).toFixed(1)));
+
+  return {
+    score,
+    rawLoad: parseFloat(rawLoad.toFixed(1)),
+    strengthSessions: strengthSessions.length,
+    runCount: data.runs.filter(r => r.date >= weekStartStr).length,
+    cardioCount: (data.cardio || []).filter(c => c.date >= weekStartStr).length,
+    mobilityCount,
+    strengthLoad: parseFloat(strengthLoad.toFixed(1)),
+    runLoad: parseFloat(runLoad.toFixed(1)),
+    cardioLoad: parseFloat(cardioLoad.toFixed(1)),
+    stepLoad: parseFloat(stepLoad.toFixed(1)),
+  };
+}
+
+// ── Rest Day Prescription ──
+// Fires when accumulated load OR session density is high enough
+// that a full rest day is genuinely recommended over any workout.
+function calcRestDayNeeded() {
+  const load = calcWeeklyLoadScore();
+  const now = new Date();
+
+  // Count training days (any activity) in last 7 days
+  const last7 = new Set();
+  const weekStartStr = new Date(now - 6 * 86400000).toISOString().slice(0, 10);
+  data.workouts.filter(w => w.date >= weekStartStr).forEach(w => last7.add(w.date));
+  data.runs.filter(r => r.date >= weekStartStr).forEach(r => last7.add(r.date));
+  (data.cardio || []).filter(c => c.date >= weekStartStr).forEach(c => last7.add(c.date));
+  const activeDays = last7.size;
+
+  // Consecutive days without a rest — streak of training days ending today
+  const allDates = new Set([
+    ...data.workouts.map(w => w.date),
+    ...data.runs.map(r => r.date),
+    ...(data.cardio || []).map(c => c.date),
+  ]);
+  let consecutiveDays = 0;
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const ds = d.toISOString().slice(0, 10);
+    if (allDates.has(ds)) {
+      consecutiveDays++;
+    } else {
+      break;
+    }
+  }
+
+  const needsRest = load.score >= 7.5 && activeDays >= 5;
+  const urgentRest = consecutiveDays >= 5;
+
+  if (!needsRest && !urgentRest) return null;
+
+  return {
+    urgentRest,
+    consecutiveDays,
+    activeDays,
+    score: load.score,
+    reason: urgentRest
+      ? `${consecutiveDays} consecutive training days — your connective tissue, nervous system, and sleep need a full rest day. Training today adds cumulative fatigue without adding fitness.`
+      : `${activeDays} active days this week with a load score of ${load.score}/10. A rest day now lets your body absorb the work you've done. You'll come back stronger.`,
+  };
+}
+
+// ── Render Weekly Load Score Card ──
+function renderWeeklyLoadCard() {
+  const el = document.getElementById('weeklyLoadCard');
+  if (!el) return;
+
+  const load = calcWeeklyLoadScore();
+  const rest = calcRestDayNeeded();
+  const score = load.score;
+
+  // Color and label based on score
+  const scoreColor = score >= 8 ? 'var(--danger)' :
+                     score >= 6 ? 'var(--accent)' :
+                     score >= 3 ? 'var(--warning)' : 'var(--run)';
+  const scoreLabel = score >= 8 ? 'High load week' :
+                     score >= 6 ? 'Solid week' :
+                     score >= 3 ? 'Building' : 'Light week';
+
+  // Mini breakdown bars
+  const maxComponent = Math.max(load.strengthLoad, load.runLoad + load.cardioLoad, 0.1);
+  const barPct = (v, max) => Math.min(100, Math.round((v / (max * 1.2)) * 100));
+
+  const restBanner = rest ? `
+    <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:${rest.urgentRest ? 'rgba(158,58,42,0.08)' : 'rgba(196,146,58,0.07)'};border:1px solid ${rest.urgentRest ? 'rgba(158,58,42,0.3)' : 'rgba(196,146,58,0.3)'}">
+      <div style="font-size:11px;font-family:'Karla',sans-serif;font-weight:600;color:${rest.urgentRest ? 'var(--danger)' : 'var(--warning)'};margin-bottom:4px">${rest.urgentRest ? '⛔ Rest Day Needed' : '⚠️ Recovery Recommended'}</div>
+      <div style="font-size:11px;font-family:'Karla',sans-serif;color:var(--text2);line-height:1.55">${rest.reason}</div>
+    </div>` : '';
+
+  el.innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;font-family:'Karla',sans-serif;font-weight:600;margin-bottom:2px">Weekly Load</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text2)">${scoreLabel}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:700;color:${scoreColor};line-height:1">${score}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:'Karla',sans-serif">/ 10</div>
+        </div>
+      </div>
+      <div style="background:var(--surface);border-radius:4px;height:8px;overflow:hidden;margin-bottom:12px">
+        <div style="height:100%;width:${Math.min(100, score * 10)}%;background:${scoreColor};border-radius:4px;transition:width 1s cubic-bezier(0.34,1.2,0.64,1)"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px;font-family:'Karla',sans-serif">
+        <div style="text-align:center">
+          <div style="color:var(--strength);font-weight:600;font-size:13px">${load.strengthSessions}</div>
+          <div style="color:var(--text3)">Strength</div>
+        </div>
+        <div style="text-align:center">
+          <div style="color:var(--run);font-weight:600;font-size:13px">${load.runCount + load.cardioCount}</div>
+          <div style="color:var(--text3)">Cardio</div>
+        </div>
+        <div style="text-align:center">
+          <div style="color:var(--warning);font-weight:600;font-size:13px">${load.mobilityCount}</div>
+          <div style="color:var(--text3)">Mobility</div>
+        </div>
+      </div>
+      ${restBanner}
+    </div>`;
+}
+
 function renderToday() {
   renderWeekGrid();
 
@@ -2501,6 +3030,7 @@ function renderToday() {
     streak === 1 ? 'Day 1 — keep going!' :
     `${streak} days and counting — don't break it`;
 
+  renderWeeklyLoadCard();
   renderTrainingIntelCard();
   renderNextWorkout();
   renderRunRecommendation();
@@ -2695,16 +3225,51 @@ function selectLogType(type) {
   currentLogType = type;
   document.getElementById('typeBtnS').className = 'type-btn' + (type === 'strength' ? ' active-s' : '');
   document.getElementById('typeBtnR').className = 'type-btn' + (type === 'run' ? ' active-r' : '');
+  document.getElementById('typeBtnC').className = 'type-btn' + (type === 'cardio' ? ' active-s' : '');
   document.getElementById('strengthForm').style.display = type === 'strength' ? 'block' : 'none';
   document.getElementById('runForm').style.display = type === 'run' ? 'block' : 'none';
+  document.getElementById('cardioForm').style.display = type === 'cardio' ? 'block' : 'none';
+  if (type === 'cardio') {
+    document.getElementById('cardioDate').value = today();
+    updateCardioEffort();
+  }
 }
 
 function selectModalType(type) {
   currentModalType = type;
   document.getElementById('modalTypeBtnS').className = 'type-btn' + (type === 'strength' ? ' active-s' : '');
   document.getElementById('modalTypeBtnR').className = 'type-btn' + (type === 'run' ? ' active-r' : '');
+  document.getElementById('modalTypeBtnC').className = 'type-btn' + (type === 'cardio' ? ' active-s' : '');
   document.getElementById('quickStrengthForm').style.display = type === 'strength' ? 'block' : 'none';
   document.getElementById('quickRunForm').style.display = type === 'run' ? 'block' : 'none';
+  document.getElementById('quickCardioForm').style.display = type === 'cardio' ? 'block' : 'none';
+}
+
+function selectQuickCardioKind(kind) {
+  document.getElementById('quickCardioKind').value = kind;
+  const bikeBtn = document.getElementById('quickCardioBikeBtn');
+  const walkBtn = document.getElementById('quickCardioWalkBtn');
+  if (kind === 'bike') {
+    bikeBtn.style.cssText = `flex:1;padding:8px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.12);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer`;
+    walkBtn.style.cssText = `flex:1;padding:8px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer`;
+  } else {
+    walkBtn.style.cssText = `flex:1;padding:8px;border-radius:var(--radius);border:1px solid var(--accent2);background:rgba(122,106,82,0.12);color:var(--accent2);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer`;
+    bikeBtn.style.cssText = `flex:1;padding:8px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer`;
+  }
+}
+
+function saveQuickCardio() {
+  const kind = document.getElementById('quickCardioKind').value;
+  const distance = parseFloat(document.getElementById('quickCardioDistance').value);
+  const time = parseFloat(document.getElementById('quickCardioTime').value);
+  if (!distance || !time) { showToast('Enter distance and time'); return; }
+  const effort = calcCardioEffort(kind, distance, time, 6);
+  if (!data.cardio) data.cardio = [];
+  data.cardio.push({ date: today(), kind, distance, time, rpe: 6, notes: '', effort });
+  saveData(data);
+  closeModal('logModal');
+  showToast(kind === 'bike' ? `🚴 Ride logged! ${effort} units` : `🚶 Walk logged! ${effort} units`);
+  renderToday();
 }
 
 // ═══ EXERCISE LOGGER ═══
@@ -2926,13 +3491,129 @@ function saveRun() {
   const rpe = parseInt(document.getElementById('runRPE').value);
   const notes = document.getElementById('runNotes').value;
   const runType = document.getElementById('runTypeVal').value || 'easy';
+  const avgHR = parseInt(document.getElementById('runAvgHR').value) || null;
+  const hrZone = avgHR ? hrToZone(avgHR).zone : null;
 
   if (!distance || !time) { showToast('Enter distance and time'); return; }
 
   const pace = time / distance;
-  data.runs.push({ date, distance, time, pace, rpe, notes, runType });
+  data.runs.push({ date, distance, time, pace, rpe, notes, runType, avgHR, hrZone });
   saveData(data);
   showToast('🏃 Run saved!');
+  document.getElementById('runAvgHR').value = '';
+  document.getElementById('runHRZoneDisplay').textContent = '—';
+  document.getElementById('runHRZoneDisplay').style.color = 'var(--text3)';
+  showPage('today');
+}
+
+// ═══════════════════════════════════════════════════
+// CARDIO ENGINE
+// Cardiovascular effort model (MET-based, normalized to run = 1.0)
+// Run:  ~10 MET average at moderate RPE  → multiplier 1.00
+// Bike: ~7  MET average at moderate RPE  → multiplier 0.70
+// Walk: ~3.5 MET                         → multiplier 0.40
+// Effort unit = (distance × kindMult × rpeFactor) / 5
+// A "standard" easy 5km run at RPE 6 → 5 × 1.0 × 1.0 / 5 = 1.0 unit
+// A hard 20km bike at RPE 8 → 20 × 0.7 × 1.2 / 5 = 3.36 units
+// ═══════════════════════════════════════════════════
+
+const CARDIO_MULT = { bike: 0.70, walk: 0.40, run_equiv: 1.00 };
+const LONG_WALK_THRESHOLD_KM = 4.0;   // walks below this are "steps", not cardio
+const LONG_WALK_THRESHOLD_MIN = 45;
+
+function rpeToFactor(rpe) {
+  // Linear scale: RPE 1→0.5, RPE 5→0.85, RPE 7→1.15, RPE 10→1.6
+  return 0.5 + (rpe - 1) * (1.1 / 9);
+}
+
+function calcCardioEffort(kind, distance, time, rpe, terrain) {
+  const mult = CARDIO_MULT[kind] || 0.5;
+  const rpeFactor = rpeToFactor(rpe || 6);
+  // time factor for slow rides/walks where distance understates effort
+  const timeFactor = time ? Math.max(1, time / 60) * 0.15 + 0.85 : 1;
+  // hilly terrain adds 20% effort for walks
+  const terrainMult = (kind === 'walk' && terrain === 'hilly') ? 1.2 : 1.0;
+  return parseFloat(((distance * mult * rpeFactor * timeFactor * terrainMult) / 5).toFixed(2));
+}
+
+function effortLabel(effort) {
+  if (effort >= 3.0) return 'Very High — equivalent to a hard long run';
+  if (effort >= 1.8) return 'High — meaningful cardio session';
+  if (effort >= 1.0) return 'Moderate — comparable to an easy 5K';
+  if (effort >= 0.5) return 'Low-Moderate — active recovery load';
+  return 'Light — minimal cardiovascular stimulus';
+}
+
+function selectCardioKind(kind) {
+  document.getElementById('cardioKindVal').value = kind;
+  const bikeBtn = document.getElementById('cardioBikeBtn');
+  const walkBtn = document.getElementById('cardioWalkBtn');
+  if (kind === 'bike') {
+    bikeBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.12);color:var(--accent);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    walkBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s`;
+  } else {
+    walkBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--accent2);background:rgba(122,106,82,0.12);color:var(--accent2);font-family:'Karla',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    bikeBtn.style.cssText = `flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:13px;font-weight:400;cursor:pointer;transition:all 0.2s`;
+  }
+  onCardioKindChange();
+  updateCardioEffort();
+}
+
+function updateCardioEffort() {
+  const kind = document.getElementById('cardioKindVal').value;
+  const dist = parseFloat(document.getElementById('cardioDistance').value);
+  const time = parseFloat(document.getElementById('cardioTime').value);
+  const rpe = parseInt(document.getElementById('cardioRPE').value) || 6;
+  const terrain = document.getElementById('cardioTerrainVal')?.value || 'flat';
+  const el = document.getElementById('cardioEffortDisplay');
+  if (!dist || !time) { el.textContent = '— fill in distance + time'; el.style.color = 'var(--text3)'; return; }
+
+  if (kind === 'walk' && dist < LONG_WALK_THRESHOLD_KM && time < LONG_WALK_THRESHOLD_MIN) {
+    el.textContent = `⚠️ Short walk — log as steps instead (< ${LONG_WALK_THRESHOLD_KM}km or ${LONG_WALK_THRESHOLD_MIN}min)`;
+    el.style.color = 'var(--warning)';
+    return;
+  }
+
+  const effort = calcCardioEffort(kind, dist, time, rpe, terrain);
+  const speed = kind === 'bike' ? (dist / time * 60).toFixed(1) + ' km/h' : (time / dist).toFixed(1) + ' min/km pace';
+  const terrainNote = kind === 'walk' && terrain === 'hilly' ? ' · +20% hilly' : '';
+  el.style.color = effort >= 1.0 ? 'var(--accent)' : effort >= 0.5 ? 'var(--warning)' : 'var(--text3)';
+  el.textContent = `${effort} units — ${effortLabel(effort)} · ${speed}${terrainNote}`;
+}
+
+function saveCardio() {
+  const kind = document.getElementById('cardioKindVal').value;
+  const date = document.getElementById('cardioDate').value || today();
+  const distance = parseFloat(document.getElementById('cardioDistance').value);
+  const time = parseFloat(document.getElementById('cardioTime').value);
+  const rpe = parseInt(document.getElementById('cardioRPE').value) || 6;
+  const notes = document.getElementById('cardioNotes').value;
+  const terrain = document.getElementById('cardioTerrainVal')?.value || 'flat';
+  const avgHR = parseInt(document.getElementById('cardioAvgHR')?.value) || null;
+  const hrZone = avgHR ? hrToZone(avgHR).zone : null;
+
+  if (!distance || !time) { showToast('Enter distance and time'); return; }
+
+  if (kind === 'walk' && distance < LONG_WALK_THRESHOLD_KM && time < LONG_WALK_THRESHOLD_MIN) {
+    showToast('Short walk — log as steps instead'); return;
+  }
+
+  const effort = calcCardioEffort(kind, distance, time, rpe, terrain);
+  const entry = { date, kind, distance, time, rpe, notes, effort, terrain, avgHR, hrZone };
+  if (!data.cardio) data.cardio = [];
+  data.cardio.push(entry);
+  saveData(data);
+  showToast(kind === 'bike' ? `🚴 Ride saved! ${effort} units` : `🚶 Walk saved! ${effort} units`);
+  // Reset form
+  document.getElementById('cardioDistance').value = '';
+  document.getElementById('cardioTime').value = '';
+  document.getElementById('cardioNotes').value = '';
+  document.getElementById('cardioRPE').value = 6;
+  document.getElementById('cardioRpeVal').textContent = 6;
+  if (document.getElementById('cardioAvgHR')) document.getElementById('cardioAvgHR').value = '';
+  if (document.getElementById('cardioHRZoneDisplay')) { document.getElementById('cardioHRZoneDisplay').textContent = '—'; document.getElementById('cardioHRZoneDisplay').style.color = 'var(--text3)'; }
+  selectTerrain('flat');
+  updateCardioEffort();
   showPage('today');
 }
 
@@ -3156,6 +3837,9 @@ function generateWorkoutFeedback(newWorkout) {
 document.getElementById('editStepsModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal('editStepsModal');
 });
+document.getElementById('editCardioModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('editCardioModal');
+});
 document.getElementById('dayModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal('dayModal');
 });
@@ -3171,13 +3855,14 @@ function openDayModal(ds) {
   const workouts = data.workouts.map((w, i) => ({ ...w, idx: i })).filter(w => w.date === ds);
   const runs = data.runs.map((r, i) => ({ ...r, idx: i })).filter(r => r.date === ds);
   const steps = data.steps.map((s, i) => ({ ...s, idx: i })).filter(s => s.date === ds);
+  const cardios = (data.cardio || []).map((c, i) => ({ ...c, idx: i })).filter(c => c.date === ds);
 
   const entriesEl = document.getElementById('dayModalEntries');
   const addEl = document.getElementById('dayModalAdd');
 
   let html = '';
 
-  if (!workouts.length && !runs.length && !steps.length) {
+  if (!workouts.length && !runs.length && !steps.length && !cardios.length) {
     html += `<div style="text-align:center;padding:20px 0;color:var(--text3);font-family:'Karla',sans-serif;font-size:13px">Nothing logged for this day.</div>`;
   }
 
@@ -3218,6 +3903,23 @@ function openDayModal(ds) {
       </div>`;
   });
 
+  cardios.forEach(c => {
+    const icon = c.kind === 'walk' ? '🚶' : '🚴';
+    const label = c.kind === 'walk' ? 'Long Walk' : 'Bike Ride';
+    const speed = c.kind === 'bike'
+      ? `${(c.distance / c.time * 60).toFixed(1)} km/h`
+      : `${(c.time / c.distance).toFixed(1)} min/km`;
+    html += `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border2);margin-bottom:8px">
+        <div style="font-size:20px">${icon}</div>
+        <div style="flex:1">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600">${c.distance} km ${label}</div>
+          <div style="font-size:12px;color:var(--text2);font-family:'Karla',sans-serif">${c.time} min · ${speed} · ${c.effort || 0} effort units</div>
+        </div>
+        <button onclick="closeModal('dayModal');openEditCardio(${c.idx})" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-family:'Karla',sans-serif;font-size:11px;color:var(--text2);cursor:pointer">Edit</button>
+      </div>`;
+  });
+
   entriesEl.innerHTML = html;
 
   // Add buttons for missing entry types
@@ -3229,6 +3931,7 @@ function openDayModal(ds) {
   if (!runs.length) {
     addHtml += `<button class="log-btn secondary" style="margin-bottom:6px;color:var(--run);border-color:var(--run)" onclick="closeModal('dayModal');prefillLogDate('${ds}','run')">+ Add Run</button>`;
   }
+  addHtml += `<button class="log-btn secondary" style="margin-bottom:6px;color:var(--accent2);border-color:var(--accent2)" onclick="closeModal('dayModal');prefillLogDate('${ds}','cardio')">+ Add Bike / Walk</button>`;
   if (!steps.length) {
     addHtml += `<button class="log-btn secondary" style="margin-bottom:6px" onclick="closeModal('dayModal');prefillStepsDate('${ds}')">+ Add Steps</button>`;
   }
@@ -3243,8 +3946,10 @@ function prefillLogDate(ds, type) {
   selectLogType(type);
   if (type === 'strength') {
     document.getElementById('strengthDate').value = ds;
-  } else {
+  } else if (type === 'run') {
     document.getElementById('runDate').value = ds;
+  } else if (type === 'cardio') {
+    document.getElementById('cardioDate').value = ds;
   }
 }
 
@@ -3259,6 +3964,7 @@ function openEdit(kind, idx) {
   if (kind === 'run') openEditRun(idx);
   else if (kind === 'strength') openEditWorkout(idx);
   else if (kind === 'steps') openEditSteps(idx);
+  else if (kind === 'cardio') openEditCardio(idx);
 }
 
 // ── Edit Run ──
@@ -3577,7 +4283,131 @@ function deleteSteps() {
   renderStepsCard();
 }
 
-// ═══ HISTORY ═══
+// ── Edit Cardio ──
+function openEditCardio(idx) {
+  const c = (data.cardio || [])[idx];
+  if (!c) return;
+  document.getElementById('editCardioIndex').value = idx;
+  document.getElementById('editCardioTitle').textContent = c.kind === 'bike' ? '🚴 Edit Bike Ride' : '🚶 Edit Long Walk';
+  document.getElementById('editCardioDate').value = c.date;
+  document.getElementById('editCardioDistance').value = c.distance;
+  document.getElementById('editCardioTime').value = c.time;
+  document.getElementById('editCardioRPE').value = c.rpe || 6;
+  document.getElementById('editCardioRpeVal').textContent = c.rpe || 6;
+  document.getElementById('editCardioNotes').value = c.notes || '';
+  const avgHREl = document.getElementById('editCardioAvgHR');
+  if (avgHREl) avgHREl.value = c.avgHR || '';
+  selectEditCardioKind(c.kind);
+  selectEditTerrain(c.terrain || 'flat');
+  updateEditCardioEffort();
+  updateEditCardioHRZone();
+  document.getElementById('editCardioModal').classList.add('open');
+}
+
+function selectEditCardioKind(kind) {
+  document.getElementById('editCardioKindVal').value = kind;
+  const bikeBtn = document.getElementById('editCardioBikeBtn');
+  const walkBtn = document.getElementById('editCardioWalkBtn');
+  if (kind === 'bike') {
+    bikeBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--accent);background:rgba(184,92,56,0.12);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    walkBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+  } else {
+    walkBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--accent2);background:rgba(122,106,82,0.12);color:var(--accent2);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+    bikeBtn.style.cssText = `flex:1;padding:9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+  }
+  const tg = document.getElementById('editCardioTerrainGroup');
+  if (tg) tg.style.display = kind === 'walk' ? 'block' : 'none';
+  updateEditCardioEffort();
+}
+
+function selectEditTerrain(terrain) {
+  const el = document.getElementById('editCardioTerrainVal');
+  if (el) el.value = terrain;
+  const flatBtn = document.getElementById('editTerrainFlatBtn');
+  const hillyBtn = document.getElementById('editTerrainHillyBtn');
+  if (flatBtn && hillyBtn) {
+    if (terrain === 'flat') {
+      flatBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--accent2);background:rgba(122,106,82,0.12);color:var(--accent2);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+      hillyBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+    } else {
+      hillyBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--accent);background:rgba(184,92,56,0.10);color:var(--accent);font-family:'Karla',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s`;
+      flatBtn.style.cssText = `flex:1;padding:8px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Karla',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s`;
+    }
+  }
+  updateEditCardioEffort();
+}
+
+function updateEditCardioEffort() {
+  const kind = document.getElementById('editCardioKindVal').value || 'bike';
+  const dist = parseFloat(document.getElementById('editCardioDistance').value);
+  const time = parseFloat(document.getElementById('editCardioTime').value);
+  const rpe = parseInt(document.getElementById('editCardioRPE').value) || 6;
+  const terrain = document.getElementById('editCardioTerrainVal')?.value || 'flat';
+  const el = document.getElementById('editCardioEffortDisplay');
+  if (!dist || !time) { el.textContent = '—'; el.style.color = 'var(--text3)'; return; }
+  const effort = calcCardioEffort(kind, dist, time, rpe, terrain);
+  el.style.color = effort >= 1.0 ? 'var(--accent)' : 'var(--warning)';
+  el.textContent = `${effort} units — ${effortLabel(effort)}`;
+}
+
+function updateEditCardioHRZone() {
+  const hr = parseInt(document.getElementById('editCardioAvgHR')?.value);
+  const el = document.getElementById('editCardioHRZoneDisplay');
+  if (!el) return;
+  if (!hr || hr < 80) { el.textContent = '—'; el.style.color = 'var(--text3)'; return; }
+  const z = hrToZone(hr);
+  el.textContent = `${z.label} · ${z.desc}`;
+  el.style.color = z.color;
+}
+
+function saveEditCardio() {
+  const idx = parseInt(document.getElementById('editCardioIndex').value);
+  const kind = document.getElementById('editCardioKindVal').value;
+  const distance = parseFloat(document.getElementById('editCardioDistance').value);
+  const time = parseFloat(document.getElementById('editCardioTime').value);
+  if (!distance || !time) { showToast('Enter distance and time'); return; }
+  const rpe = parseInt(document.getElementById('editCardioRPE').value) || 6;
+  const terrain = document.getElementById('editCardioTerrainVal')?.value || 'flat';
+  const avgHR = parseInt(document.getElementById('editCardioAvgHR')?.value) || null;
+  const hrZone = avgHR ? hrToZone(avgHR).zone : null;
+  const effort = calcCardioEffort(kind, distance, time, rpe, terrain);
+  data.cardio[idx] = {
+    ...data.cardio[idx],
+    kind, date: document.getElementById('editCardioDate').value,
+    distance, time, rpe, effort, terrain, avgHR, hrZone,
+    notes: document.getElementById('editCardioNotes').value,
+  };
+  saveData(data);
+  closeModal('editCardioModal');
+  showToast(kind === 'bike' ? '🚴 Ride updated!' : '🚶 Walk updated!');
+  renderHistory();
+  renderToday();
+}
+
+function deleteCardio() {
+  const idx = parseInt(document.getElementById('editCardioIndex').value);
+  const btn = document.querySelector('#editCardioModal .log-btn[onclick="deleteCardio()"]');
+  if (btn && btn.dataset.confirming !== 'true') {
+    btn.dataset.confirming = 'true';
+    btn.textContent = 'Tap again to confirm delete';
+    setTimeout(() => { btn.dataset.confirming = 'false'; btn.textContent = 'Delete Entry'; }, 3000);
+    return;
+  }
+  data.cardio.splice(idx, 1);
+  saveData(data);
+  closeModal('editCardioModal');
+  showToast('Cardio entry deleted');
+  renderHistory();
+  renderToday();
+}
+
+document.getElementById('editCardioDistance').addEventListener('input', updateEditCardioEffort);
+document.getElementById('editCardioTime').addEventListener('input', updateEditCardioEffort);
+document.getElementById('editCardioRPE').addEventListener('input', function() {
+  document.getElementById('editCardioRpeVal').textContent = this.value;
+  updateEditCardioEffort();
+});
+document.getElementById('editCardioAvgHR').addEventListener('input', updateEditCardioHRZone);
 function getHistoryFeedback(workout, idx) {
   const prev = data.workouts
     .filter((w, i) => w.type === workout.type && i < idx)
@@ -3650,8 +4480,9 @@ function renderHistory() {
   const allWorkouts = data.workouts.map((w, i) => ({ ...w, kind: 'strength', idx: i }));
   const allRuns = data.runs.map((r, i) => ({ ...r, kind: 'run', idx: i }));
   const allSteps = data.steps.map((s, i) => ({ ...s, kind: 'steps', idx: i }));
+  const allCardio = (data.cardio || []).map((c, i) => ({ ...c, kind: 'cardio', idx: i }));
 
-  const all = [...allWorkouts, ...allRuns, ...allSteps]
+  const all = [...allWorkouts, ...allRuns, ...allSteps, ...allCardio]
     .sort((a, b) => b.date.localeCompare(a.date));
 
   if (!all.length) {
@@ -3690,6 +4521,7 @@ function renderHistory() {
 
     } else if (item.kind === 'run') {
       const paceStr = item.pace ? `${Math.floor(item.pace)}:${String(Math.round((item.pace % 1) * 60)).padStart(2,'0')}/km` : '';
+      const hrStr = item.avgHR ? ` · ${hrZoneDisplay(item.avgHR)}` : '';
       // Run feedback vs previous run
       const prevRun = data.runs.filter((r, i) => i < item.idx).sort((a,b) => b.date.localeCompare(a.date))[0];
       let runFeedback = '';
@@ -3703,9 +4535,27 @@ function renderHistory() {
         <div class="history-icon r">🏃</div>
         <div style="flex:1">
           <div class="history-name">${item.distance} km Run</div>
-          <div class="history-meta">${item.time} min${paceStr ? ' · ' + paceStr : ''}</div>
+          <div class="history-meta">${item.time} min${paceStr ? ' · ' + paceStr : ''}${hrStr}</div>
           <div class="history-date">${formatDate(item.date)}</div>
           ${runFeedback}
+        </div>
+        ${editBtn}
+      </div>`;
+    } else if (item.kind === 'cardio') {
+      const icon = item.cardioKind === 'walk' ? '🚶' : '🚴';
+      const kindLabel = item.cardioKind === 'walk' ? 'Long Walk' : 'Bike Ride';
+      const speed = item.cardioKind === 'bike'
+        ? `${(item.distance / item.time * 60).toFixed(1)} km/h`
+        : `${(item.time / item.distance).toFixed(1)} min/km`;
+      const effortStr = item.effort ? `${item.effort} units · ` : '';
+      const terrainStr = item.cardioKind === 'walk' && item.terrain === 'hilly' ? ' · ⛰ hilly' : '';
+      const hrStr = item.avgHR ? ` · ${hrZoneDisplay(item.avgHR)}` : '';
+      return `<div class="history-item">
+        <div class="history-icon r" style="background:rgba(122,106,82,0.12)">${icon}</div>
+        <div style="flex:1">
+          <div class="history-name">${item.distance} km ${kindLabel}${terrainStr}</div>
+          <div class="history-meta">${item.time} min · ${speed} · <span style="color:var(--accent2)">${effortStr}${effortLabel(item.effort || 0)}</span>${hrStr}</div>
+          <div class="history-date">${formatDate(item.date)}</div>
         </div>
         ${editBtn}
       </div>`;
@@ -3832,7 +4682,8 @@ function renderStepsCard() {
   // Workout-day vs rest-day context
   const todayHasWorkout = data.workouts.some(w => w.date === today());
   const todayHasRun = data.runs.some(r => r.date === today());
-  const isWorkoutDay = todayHasWorkout || todayHasRun;
+  const todayHasCardio = (data.cardio || []).some(c => c.date === today());
+  const isWorkoutDay = todayHasWorkout || todayHasRun || todayHasCardio;
   let contextNote = '';
   if (val > 0) {
     if (isWorkoutDay && isWorkout) {
@@ -4248,6 +5099,124 @@ function renderStepWoW() {
     </div>`;
 }
 
+// ── Weekly Cardio Effort Chart ──
+function drawCardioEffortChart() {
+  const canvas = document.getElementById('cardioEffortChart');
+  if (!canvas) return;
+
+  // Build last 14 days of combined cardio effort per day
+  const now = new Date();
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const runEffort = data.runs
+      .filter(r => r.date === ds)
+      .reduce((s, r) => s + calcCardioEffort('run_equiv', r.distance, r.time, r.rpe || 6), 0);
+    const bikeEffort = (data.cardio || [])
+      .filter(c => c.date === ds && c.kind === 'bike')
+      .reduce((s, c) => s + (c.effort || 0), 0);
+    const walkEffort = (data.cardio || [])
+      .filter(c => c.date === ds && c.kind === 'walk')
+      .reduce((s, c) => s + (c.effort || 0), 0);
+    days.push({ ds, d, runEffort, bikeEffort, walkEffort, total: runEffort + bikeEffort + walkEffort });
+  }
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = (rect.width || 300) * dpr;
+  canvas.height = 160 * dpr;
+  ctx.scale(dpr, dpr);
+  const W = canvas.width / dpr;
+  const H = 160;
+  const PAD = { top: 16, right: 16, bottom: 28, left: 40 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+  ctx.clearRect(0, 0, W, H);
+
+  const maxVal = Math.max(...days.map(d => d.total), 1.0) * 1.15;
+  const barW = (cW / days.length) * 0.7;
+  const toX = i => PAD.left + (i + 0.5) * (cW / days.length);
+  const toH = v => (v / maxVal) * cH;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(44,36,32,0.07)';
+  ctx.lineWidth = 1;
+  [0, 0.5, 1.0, 2.0].forEach(v => {
+    if (v <= maxVal) {
+      const y = PAD.top + cH - toH(v);
+      ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(168,153,140,0.8)';
+      ctx.font = '9px Karla, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(v.toFixed(v < 1 ? 1 : 0), PAD.left - 3, y + 3);
+    }
+  });
+
+  // Reference line at 1.0 (easy 5K equivalent)
+  const refY = PAD.top + cH - toH(1.0);
+  if (refY >= PAD.top) {
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(184,92,56,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD.left, refY); ctx.lineTo(W - PAD.right, refY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(184,92,56,0.5)';
+    ctx.font = '8px Karla, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('5K equiv', W - PAD.right - 1, refY - 2);
+  }
+
+  // Stacked bars: walk (bottom, muted green) → bike (middle, accent2) → run (top, accent)
+  days.forEach((day, i) => {
+    const x = toX(i) - barW / 2;
+    let yBase = PAD.top + cH;
+
+    const segments = [
+      { val: day.walkEffort, color: 'rgba(122,106,82,0.4)' },
+      { val: day.bikeEffort, color: 'rgba(122,106,82,0.75)' },
+      { val: day.runEffort,  color: 'rgba(184,92,56,0.85)' },
+    ];
+    segments.forEach(seg => {
+      if (seg.val <= 0) return;
+      const h = toH(seg.val);
+      yBase -= h;
+      ctx.fillStyle = seg.color;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(x, yBase, barW, h, 2) : ctx.rect(x, yBase, barW, h);
+      ctx.fill();
+    });
+
+    // X labels: show Mon/day for every other day
+    const dayLabel = ['S','M','T','W','T','F','S'][day.d.getDay()];
+    const isToday = day.ds === today();
+    ctx.fillStyle = isToday ? 'var(--accent)' : 'rgba(107,92,82,0.7)';
+    ctx.font = `${isToday ? 'bold ' : ''}9px Karla, sans-serif`;
+    ctx.textAlign = 'center';
+    if (i % 2 === 0 || i === days.length - 1) {
+      ctx.fillText(dayLabel, toX(i), H - 6);
+    }
+  });
+
+  // Update stats
+  const weekDays = days.slice(7); // last 7
+  const weekEffort = weekDays.reduce((s, d) => s + d.total, 0);
+  const weekSessions = weekDays.filter(d => d.total > 0).length;
+  const totalBikeKm = (data.cardio || []).filter(c => c.kind === 'bike').reduce((s, c) => s + (c.distance || 0), 0);
+  const totalWalkKm = (data.cardio || []).filter(c => c.kind === 'walk').reduce((s, c) => s + (c.distance || 0), 0);
+
+  const wce = document.getElementById('statWeekCardioEffort');
+  const wcs = document.getElementById('statWeekCardioSessions');
+  const tbk = document.getElementById('statTotalBikeKm');
+  const twk = document.getElementById('statTotalWalkKm');
+  if (wce) wce.textContent = weekEffort.toFixed(1);
+  if (wcs) wcs.textContent = weekSessions;
+  if (tbk) tbk.textContent = totalBikeKm.toFixed(0);
+  if (twk) twk.textContent = totalWalkKm.toFixed(0);
+}
+
 function drawCharts() {
   const stats = getWeekStats();
   const latestPace = getLatestPace();
@@ -4289,6 +5258,7 @@ function drawCharts() {
   }
 
   drawStepsChart();
+  drawCardioEffortChart();
 
   // Populate adaptive baseline explainer
   const baselineEl = document.getElementById('baselineExplainer');
@@ -4423,6 +5393,7 @@ function initLogDates() {
   const t = today();
   document.getElementById('strengthDate').value = t;
   document.getElementById('runDate').value = t;
+  document.getElementById('cardioDate').value = t;
 }
 
 // ═══ RUN PACE LIVE ═══
@@ -4549,6 +5520,14 @@ document.getElementById('runTime').addEventListener('input', updatePaceDisplay);
 document.getElementById('runRPE').addEventListener('input', function() {
   document.getElementById('rpeVal').textContent = this.value;
 });
+document.getElementById('cardioDistance').addEventListener('input', updateCardioEffort);
+document.getElementById('cardioTime').addEventListener('input', updateCardioEffort);
+document.getElementById('cardioRPE').addEventListener('input', function() {
+  document.getElementById('cardioRpeVal').textContent = this.value;
+  updateCardioEffort();
+});
+document.getElementById('runAvgHR').addEventListener('input', updateRunHRZone);
+document.getElementById('cardioAvgHR').addEventListener('input', updateCardioHRZone);
 
 // ═══ DATA BACKUP / RESTORE ═══
 
@@ -4556,6 +5535,8 @@ function renderDataPage() {
   document.getElementById('dataStatWorkouts').textContent = data.workouts?.length || 0;
   document.getElementById('dataStatRuns').textContent = data.runs?.length || 0;
   document.getElementById('dataStatSteps').textContent = data.steps?.length || 0;
+  const cardioEl = document.getElementById('dataStatCardio');
+  if (cardioEl) cardioEl.textContent = data.cardio?.length || 0;
   const raw = JSON.stringify(data);
   document.getElementById('dataStatSize').textContent = (raw.length / 1024).toFixed(1);
   // Reset UI state
@@ -4610,7 +5591,7 @@ function showBackupConfirm(text) {
   btn.style.background = 'var(--run)';
   confirm.style.display = 'block';
   confirm.style.color = 'var(--strength)';
-  confirm.textContent = `✓ Backup copied! (${data.workouts?.length || 0} workouts, ${data.runs?.length || 0} runs, ${data.steps?.length || 0} step entries) — paste into Notes to save.`;
+  confirm.textContent = `✓ Backup copied! (${data.workouts?.length || 0} workouts, ${data.runs?.length || 0} runs, ${data.cardio?.length || 0} bike/walk, ${data.steps?.length || 0} step entries) — paste into Notes to save.`;
   setTimeout(() => {
     btn.textContent = '📋 Copy Backup to Clipboard';
     btn.style.background = '';
@@ -4647,11 +5628,12 @@ function restoreBackup() {
 
     // Restore
     Object.assign(data, parsed);
+    if (!data.cardio) data.cardio = []; // migrate old backups
     saveData(data);
 
     status.style.display = 'block';
     status.style.color = 'var(--strength)';
-    status.textContent = `✓ Restored! ${parsed.workouts.length} workouts, ${parsed.runs.length} runs, ${parsed.steps?.length || 0} step entries.`;
+    status.textContent = `✓ Restored! ${parsed.workouts.length} workouts, ${parsed.runs.length} runs, ${parsed.cardio?.length || 0} bike/walk, ${parsed.steps?.length || 0} step entries.`;
 
     // Refresh stats
     renderDataPage();
@@ -4677,7 +5659,7 @@ function clearAllData() {
     }, 4000);
     return;
   }
-  data = { workouts: [], runs: [], steps: [] };
+  data = { workouts: [], runs: [], steps: [], cardio: [] };
   saveData(data);
   renderDataPage();
   showToast('All data cleared');
